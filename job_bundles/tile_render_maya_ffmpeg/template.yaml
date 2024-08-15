@@ -1,0 +1,391 @@
+specificationVersion: jobtemplate-2023-09
+name: Maya Tiled Render
+description: |
+  This job uses Maya, Arnold for Maya and ffmpeg to do tile rendering and assembly.
+  Tile rendering divides an image into evenly sized regions, and assembly stiches the tiles
+  back together. 
+  
+  As of 07/2024, this example requires modifications to the arnold render handler in the 
+  Deadline Cloud Maya Adaptor to successfully run. It also requires Linux render workers to
+  execute the assembly step as it is a bash script.
+
+  It uses two conda channels to get software. Maya and Arnold is acquired from the
+  deadline-cloud channel accessible from Deadline Cloud service-managed fleets, and FFmpeg
+  is from the conda-forge community channel.
+
+  This job bundle has 2 steps:
+
+  1. Render the images as tiles using the modified Arnold render handler.
+  2. Uses ffmpeg to assemble the tiles into the whole image.
+
+  Next steps:
+  This job bundle could handle the tile rendering calculations that currently need to be added
+  to the Maya adaptor in the render step, leaving the Maya adaptor to simply handle region rendering.
+  Refer to https://github.com/mwiebe/deadline-cloud-samples/commit/ca4fa1162f504c92798536e1931b6b1c6df90285
+  for sample changes to this template.
+parameterDefinitions:
+
+# Render Parameters
+- name: MayaSceneFile
+  type: PATH
+  objectType: FILE
+  dataFlow: IN
+  userInterface:
+    control: CHOOSE_INPUT_FILE
+    label: Maya Scene File
+    groupLabel: Maya Settings
+    fileFilters:
+    - label: Maya Scene Files
+      patterns:
+      - '*.mb'
+      - '*.ma'
+    - label: All Files
+      patterns:
+      - '*'
+  description: The Maya scene file to render.
+- name: Frames
+  type: STRING
+  userInterface:
+    control: LINE_EDIT
+    label: Frames
+    groupLabel: Maya Settings
+  description: The frames to render. E.g. 1-3,8,11-15
+  default: '1'
+  minLength: 1
+- name: RenderLayer
+  type: STRING
+  userInterface:
+    control: LINE_EDIT
+    label: Render Layer
+    groupLabel: Maya Settings
+  description: The name of the layer to render.
+  default: 'masterLayer'
+- name: ProjectPath
+  type: PATH
+  objectType: DIRECTORY
+  dataFlow: NONE
+  userInterface:
+    control: CHOOSE_DIRECTORY
+    label: Project Path
+    groupLabel: Maya Settings
+  description: The Maya project path.
+- name: OutputFilePath
+  type: PATH
+  objectType: DIRECTORY
+  dataFlow: OUT
+  userInterface:
+    control: CHOOSE_DIRECTORY
+    label: Output File Path
+    groupLabel: Maya Settings
+  description: The render output path.
+- name: RenderSetupIncludeLights
+  type: STRING
+  userInterface:
+    control: CHECK_BOX
+    label: Include All Lights
+    groupLabel: Maya Settings
+  description: Include all lights in the render.
+  default: 'true'
+  allowedValues:
+  - 'true'
+  - 'false'
+- name: StrictErrorChecking
+  type: STRING
+  userInterface:
+    control: CHECK_BOX
+    label: Strict Error Checking
+    groupLabel: Maya Settings
+  description: Fail when errors occur.
+  default: 'false'
+  allowedValues:
+  - 'true'
+  - 'false'
+- name: OutputFilePrefix
+  type: STRING
+  userInterface:
+    control: LINE_EDIT
+    label: Output File Prefix
+    groupLabel: Maya Settings
+  description: The output filename prefix.
+  default: '<Scene>'
+- name: ImageWidth
+  type: INT
+  userInterface:
+    control: SPIN_BOX
+    label: Image Width
+    groupLabel: Maya Settings
+  minValue: 1
+  description: The image width of the output.
+- name: ImageHeight
+  type: INT
+  userInterface:
+    control: SPIN_BOX
+    label: Image Height
+    groupLabel: Maya Settings
+  minValue: 1
+  description: The image height of the output.
+
+# Tile Render Parameters
+- name: NumXTiles
+  type: INT
+  userInterface:
+    control: SPIN_BOX
+    label: Tiles across width
+    groupLabel: Tile Rendering Settings
+  minValue: 1
+  description: The number of tiles across the x axis.
+- name: NumYTiles
+  type: INT
+  userInterface:
+    control: SPIN_BOX
+    label: Tiles across height
+    groupLabel: Tile Rendering Settings
+  minValue: 1
+  description: The number of tiles across the y axis.
+
+# Arnold Renderer Settings
+- name: ArnoldErrorOnLicenseFailure
+  type: STRING
+  userInterface:
+    control: CHECK_BOX
+    label: Error on License Failure
+    groupLabel: Arnold Renderer Settings
+  description: Whether to produce an error when there is an Arnold license failure.
+  default: 'false'
+  allowedValues:
+  - 'true'
+  - 'false'
+
+# Override Parameters
+- name: OverrideAdaptorWheels
+  type: PATH
+  objectType: DIRECTORY
+  dataFlow: IN
+  userInterface:
+    control: CHOOSE_DIRECTORY
+    label: Wheels directory
+    groupLabel: Override settings
+  description: A directory that contains wheels for openjd, deadline, and the overridden
+    adaptor.
+- name: OverrideAdaptorName
+  type: STRING
+  userInterface:
+    control: LINE_EDIT
+    label: Adaptor Name
+    groupLabel: Override settings
+  description: The name of the adaptor to override, for example NukeAdaptor or MayaAdaptor.
+  default: maya-openjd
+
+steps:
+- name: tile render
+  parameterSpace:
+    taskParameterDefinitions:
+    - name: Frame
+      type: INT
+      range: '{{Param.Frames}}'
+    - name: Camera
+      type: STRING
+      range:
+      - RenderCam
+    - name: TileNumberX
+      type: INT
+      range: '1-{{Param.NumXTiles}}'
+    - name: TileNumberY
+      type: INT
+      range: '1-{{Param.NumYTiles}}'
+  stepEnvironments:
+  - name: Maya
+    description: Runs Maya in the background.
+    script:
+      embeddedFiles:
+      - name: initData
+        filename: init-data.yaml
+        type: TEXT
+        data: |
+          renderer: arnold
+          render_layer: '{{Param.RenderLayer}}'
+          scene_file: '{{Param.MayaSceneFile}}'
+          project_path: '{{Param.ProjectPath}}'
+          output_file_path: '{{Param.OutputFilePath}}'
+          render_setup_include_lights: {{Param.RenderSetupIncludeLights}}
+          strict_error_checking: {{Param.StrictErrorChecking}}
+          output_file_prefix: '{{Param.OutputFilePrefix}}'
+          image_width: {{Param.ImageWidth}}
+          image_height: {{Param.ImageHeight}}
+          error_on_arnold_license_fail: {{Param.ArnoldErrorOnLicenseFailure}}
+      actions:
+        onEnter:
+          command: maya-openjd
+          args:
+          - daemon
+          - start
+          - --path-mapping-rules
+          - file://{{Session.PathMappingRulesFile}}
+          - --connection-file
+          - '{{Session.WorkingDirectory}}/connection.json'
+          - --init-data
+          - file://{{Env.File.initData}}
+          cancelation:
+            mode: NOTIFY_THEN_TERMINATE
+        onExit:
+          command: maya-openjd
+          args:
+          - daemon
+          - stop
+          - --connection-file
+          - '{{ Session.WorkingDirectory }}/connection.json'
+          cancelation:
+            mode: NOTIFY_THEN_TERMINATE
+  script:
+    embeddedFiles:
+    - name: runData
+      filename: run-data.yaml
+      type: TEXT
+      data: |
+        frame: {{Task.Param.Frame}}
+        camera: '{{Task.Param.Camera}}'
+        numXTiles: {{Param.NumXTiles}}
+        numYTiles: {{Param.NumYTiles}}
+        tileNumX: {{Task.Param.TileNumberX}}
+        tileNumY: {{Task.Param.TileNumberY}}
+        output_file_prefix: '{{Param.OutputFilePrefix}}'
+    actions:
+      onRun:
+        command: maya-openjd
+        args:
+        - daemon
+        - run
+        - --connection-file
+        - '{{ Session.WorkingDirectory }}/connection.json'
+        - --run-data
+        - file://{{ Task.File.runData }}
+        cancelation:
+          mode: NOTIFY_THEN_TERMINATE
+- name: tile assembly
+  dependencies:
+  - dependsOn: tile render
+  script:
+    actions:
+      onRun:
+        command: bash
+        args: [ "{{Task.File.Encode}}"]
+    embeddedFiles:
+    - name: Encode
+      type: TEXT
+      runnable: True
+      data: |
+        #!/bin/env bash
+
+        set -xeuo pipefail
+
+        # ASSUMPTIONS: 
+        # Output folder will either contain tiles, or folders with tiles, never both.
+        # No nested subdirectories (max one layer of subdirectories).
+        # Tiles are in correct sequential order given assembly goes left-right from top-bottom.
+        # Either the name.#.ext or name.ext Maya "Frame/Animation ext" render setting is used.
+        # Output tiles are pngs. Swap png with the desired file ext in the script as needed.
+
+        has_subdirs=true
+        FRAMES={{Param.Frames}}
+        startFrame=${FRAMES%-*}
+        endFrame=${FRAMES#*-}
+        
+        # If there are sub-directories in the output path, iterate over each item in the output file path directory and call ffmpeg for the sub-directory
+        for item in "{{Param.OutputFilePath}}"/*; do
+          # Check if the item is a directory
+          if [ -d "$item" ]; then
+            if [[ "$startFrame" == "$endFrame" ]]; then
+              ffmpeg -y -pattern_type glob -i "/$item/*.png" -filter_complex tile={{Param.NumXTiles}}x{{Param.NumYTiles}}  "/$item/output.png"
+            else
+              for frame in $(seq "$startFrame" "$endFrame"); do
+                ffmpeg -y -pattern_type glob -i "/$item/*$frame.png" -filter_complex tile={{Param.NumXTiles}}x{{Param.NumYTiles}}  "/$item/output.$frame.png"
+              done
+            fi
+          else
+            has_subdirs=false
+            break
+          fi
+        done
+
+        if [ "$has_subdirs" = false ]; then
+          if [[ "$startFrame" == "$endFrame" ]]; then
+              ffmpeg -y -pattern_type glob -i "{{Param.OutputFilePath}}/*.png" -filter_complex tile={{Param.NumXTiles}}x{{Param.NumYTiles}}  "{{Param.OutputFilePath}}/output.png"
+          else
+            for frame in $(seq "$startFrame" "$endFrame"); do
+              ffmpeg -y -pattern_type glob -i "{{Param.OutputFilePath}}/*$frame.png" -filter_complex tile={{Param.NumXTiles}}x{{Param.NumYTiles}}  "{{Param.OutputFilePath}}/output.$frame.png"
+            done
+          fi
+        fi
+jobEnvironments:
+- name: OverrideAdaptor
+  description: |
+    Replaces the default Adaptor in the environment's PATH with one from the packages in the OverrideAdaptorWheels attached directory.
+  script:
+    actions:
+      onEnter:
+        command: '{{Env.File.Enter}}'
+    embeddedFiles:
+    - name: Enter
+      filename: override-adaptor-enter.sh
+      type: TEXT
+      runnable: true
+      data: |
+        #!/bin/env bash
+
+        set -euo pipefail
+
+        echo "The adaptor wheels that are attached to the job:"
+        ls '{{Param.OverrideAdaptorWheels}}'
+        echo ""
+
+        # Create a venv and activate it in this environment
+        echo "Creating Python venv for the {{Param.OverrideAdaptorName}} command"
+        /usr/local/bin/python3 -m venv '{{Session.WorkingDirectory}}/venv'
+        {{Env.File.InitialVars}}
+        . '{{Session.WorkingDirectory}}/venv/bin/activate'
+        {{Env.File.CaptureVars}}
+        echo ""
+
+        echo "Installing adaptor into the venv"
+        pip install '{{Param.OverrideAdaptorWheels}}'/openjd*.whl
+        pip install '{{Param.OverrideAdaptorWheels}}'/deadline*.whl
+        echo ""
+
+        if [ ! -f '{{Session.WorkingDirectory}}/venv/bin/{{Param.OverrideAdaptorName}}' ]; then
+          echo "The Override Adaptor {{Param.OverrideAdaptorName}} was not installed as expected."
+          exit 1
+        fi
+    - name: InitialVars
+      filename: initial-vars
+      type: TEXT
+      runnable: true
+      data: |
+        #!/usr/bin/env python3
+        import os, json
+        envfile = "{{Session.WorkingDirectory}}/.envInitial"
+        with open(envfile, "w", encoding="utf8") as f:
+            json.dump(dict(os.environ), f)
+    - name: CaptureVars
+      filename: capture-vars
+      type: TEXT
+      runnable: true
+      data: |
+        #!/usr/bin/env python3
+        import os, json, sys
+        envfile = "{{Session.WorkingDirectory}}/.envInitial"
+        if os.path.isfile(envfile):
+            with open(envfile, "r", encoding="utf8") as f:
+                before = json.load(f)
+        else:
+            print("No initial environment found, must run Env.File.CaptureVars script first")
+            sys.exit(1)
+        after = dict(os.environ)
+
+        put = {k: v for k, v in after.items() if v != before.get(k)}
+        delete = {k for k in before if k not in after}
+
+        for k, v in put.items():
+            print(f"updating {k}={v}")
+            print(f"openjd_env: {k}={v}")
+        for k in delete:
+            print(f"openjd_unset_env: {k}")
