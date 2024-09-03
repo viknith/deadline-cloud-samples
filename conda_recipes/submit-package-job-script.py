@@ -389,7 +389,7 @@ def main():
     )
 
     job_name = (
-        f"CondaBuild: {recipe_dir.name} ({', '.join(conda_platform['name'] for conda_platform in conda_platforms)})"
+        f"CondaBuild-{recipe_dir.name}-({', '.join(conda_platform['name'] for conda_platform in conda_platforms)})"
     )
     job_bundle_dir = Path(create_job_history_bundle_dir("BuildCondaPackage", job_name))
 
