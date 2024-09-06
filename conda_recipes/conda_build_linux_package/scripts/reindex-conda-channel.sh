@@ -63,7 +63,7 @@ for CHANNEL_DIR in $CHANNEL_DIRS; do
         echo "Found $(basename $CHANNEL_DIR) in the channel"
         mkdir -p $CHANNEL_INDEXING_DIR/$(basename $CHANNEL_DIR)
         for PACKAGE in $(cd $CHANNEL_DIR; \
-                        shopt -s nullglob; echo *.conda); do
+                        shopt -s nullglob; echo *.conda *.tar.bz2); do
             ln -r -s $CHANNEL_DIR/$PACKAGE \
                 $CHANNEL_INDEXING_DIR/$(basename $CHANNEL_DIR)/$PACKAGE
         done
