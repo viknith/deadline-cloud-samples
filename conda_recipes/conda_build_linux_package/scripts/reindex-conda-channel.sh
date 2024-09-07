@@ -71,6 +71,9 @@ for CHANNEL_DIR in $CHANNEL_DIRS; do
             mkdir -p "$CHANNEL_INDEXING_DIR/$(basename $CHANNEL_DIR)/.cache"
             cp "$CHANNEL_DIR/.cache/cache.db" "$CHANNEL_INDEXING_DIR/$(basename $CHANNEL_DIR)/.cache/"
         fi
+        if [ -f "$CHANNEL_DIR/patch_instructions.json" ]; then
+            cp "$CHANNEL_DIR/patch_instructions.json" "$CHANNEL_INDEXING_DIR/$(basename $CHANNEL_DIR)/"
+        fi
     fi
 done
 
