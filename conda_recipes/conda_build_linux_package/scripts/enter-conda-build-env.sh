@@ -94,6 +94,7 @@ if [[ "$(uname -s)" == MINGW* ]]; then
     # See https://github.com/conda/conda-build/issues/4357
     #   FileNotFoundError: [WinError 206] The filename or extension is too long
     rm -f $CONDA_PREFIX/bin/rg.exe || true
+    rm -f $CONDA_PREFIX/Library/bin/rg.exe || true
 fi
 
 # Create a .condarc to control the package build settings
