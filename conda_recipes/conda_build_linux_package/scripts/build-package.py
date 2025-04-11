@@ -90,7 +90,6 @@ def get_channel_options(
         if error_code != 404:
             raise
     channel_options.extend(v for channel in conda_channels.split() for v in ["-c", channel])
-
     return channel_options
 
 

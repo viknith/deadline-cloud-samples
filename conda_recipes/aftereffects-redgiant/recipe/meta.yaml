@@ -1,0 +1,34 @@
+{% set name = "redgiant" %}
+{% set version_partial = "2025" %}
+{% set version_minor = "4" %}
+{% set version_patch = "0" %}
+{% set version = version_partial + "." + version_minor + "." + version_patch %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+- url: archive_files/Red_Giant_{{ version.replace(".", "_") }}_installation.zip # [win64]
+  sha256: f235bbe0dc9d12f8a090edeafd87d33768292683f5d364751fb8eca984b3f837 # [win64]
+  folder: redgiant
+
+build:
+  number: 0
+  # These build options for repackaging an application
+  # https://docs.conda.io/projects/conda-build/en/latest/resources/define-metadata.html
+  binary_relocation: False
+  detect_binary_files_with_prefix: False
+  missing_dso_whitelist:
+  - "**"
+
+requirements:
+  build:
+    - aftereffects
+  run:
+    - aftereffects
+
+about:
+  home: https://www.maxon.net/en/red-giant
+  license: Commercial
+  summary: Red Giant is a comprehensive toolkit designed for video post-production, motion graphics, and visual effects. It offers rich color grading, smooth transitions, realistic visual effects, motion design templates and tools to create and edit your visuals.
