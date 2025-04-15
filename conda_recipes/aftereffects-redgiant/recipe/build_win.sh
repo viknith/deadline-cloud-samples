@@ -33,7 +33,7 @@ cat "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.bat"
 cat <<EOF > "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.sh"
 start "" cmd /k "echo Redshift License: %redshift_LICENSE% && "$RG_SERVICE_PATH" --noservice"
 sleep 5
-export "RG_PID=\$(ps -W | grep "Red Giant Service" | grep -v grep | awk '{print $4}')"
+export "RG_PID=\$(ps -W | grep "Red Giant Service" | grep -v grep | awk '{print \$4}')"
 export "RG_VERSION=$RG_VERSION"
 EOF
 cat "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.sh"
