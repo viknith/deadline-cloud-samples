@@ -22,7 +22,7 @@ mkdir -p "$PREFIX/etc/conda/deactivate.d"
 
 # TODO: Fix the timeout thing to use some kind of for loop to verify the PID is defined.
 cat <<EOF > "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.bat"
-start "" cmd /k "echo Redshift License: %redshift_LICENSE% && "$RG_SERVICE_PATH" --noservice"
+start "" "$RG_SERVICE_PATH" --noservice
 timeout /t 5 >nul
 for /f "tokens=2 delims=," %%a in ('tasklist /fi "imagename eq Red Giant Service.exe" /nh /fo csv') do set "RG_PID=%%a"
 set "RG_VERSION=$RG_VERSION"
@@ -31,7 +31,7 @@ cat "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.bat"
 
 
 cat <<EOF > "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.sh"
-start "" cmd /k "echo Redshift License: %redshift_LICENSE% && "$RG_SERVICE_PATH" --noservice"
+start "" "$RG_SERVICE_PATH" --noservice
 sleep 5
 export "RG_PID=\$(ps -W | grep "Red Giant Service" | grep -v grep | awk '{print \$4}')"
 export "RG_VERSION=$RG_VERSION"
