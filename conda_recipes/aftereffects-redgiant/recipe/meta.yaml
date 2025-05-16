@@ -10,7 +10,7 @@ package:
 
 source:
 - url: archive_files/Red_Giant_{{ version.replace(".", "_") }}_installation.zip # [win64]
-  sha256: f235bbe0dc9d12f8a090edeafd87d33768292683f5d364751fb8eca984b3f837 # [win64]
+  sha256: 41c820220adfc970c63f0c2e667679d6d9eafc335ee2f55a12d0eb620ab03d03 # [win64]
   folder: redgiant
 
 build:

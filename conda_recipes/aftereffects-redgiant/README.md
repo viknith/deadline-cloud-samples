@@ -37,11 +37,11 @@ install Adobe After Effects 25 on a freshly created EC2 instance as Administrato
    3. The After Effects installer will launch. Proceed to install as normal with the components you want included.
 4. Install Red Giant and Universe and package their plugin files
    1. Log into Maxon and download the Maxon One application to manage the installation of Red Giant and Universe.
-   2. Then log into the Maxon One application and download Red Giant and Universe
-
-
-   TODO
-   3. Then make a directory under your Downloads folder called Red Giant with two subfolders: Red Giant Plugins and Red Giant Service
+   2. Then log into the Maxon One application and download Red Giant and Universe.
+5. Package the Red Giant + Universe plugin assets
+   1. First, make a directory under your Downloads folder called `Red Giant Universe`.
+   2. Then move all of the Red Giant plugin folders located under `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to a subfolder called `RGU Plug-ins` located at `Downloads\Red Giant Universe\RGU Plug-ins`
+   3. Then....we need to figure out `Program Files\Red Giant`
 
 
 
