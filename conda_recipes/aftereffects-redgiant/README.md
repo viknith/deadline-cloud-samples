@@ -40,6 +40,8 @@ install Adobe After Effects 25 on a freshly created EC2 instance as Administrato
    2. Then log into the Maxon One application and download Red Giant and Universe.
 5. Package the Red Giant + Universe plugin assets
    1. First, make a directory under your Downloads folder called `Red Giant Universe`.
-   2. Then move all of the Red Giant plugin folders located under `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to a subfolder called `RGU Plug-ins` located at `Downloads\Red Giant Universe\RGU Plug-ins`. Follow similar instructions as the After Effects Conda recipe to get a zip file set up but with the Red Giant plugins folder so that you get the hash and push up the zip asset to your S3 bucket.
-6. From the AWS EC2 management console, select the instance you used and terminate it.
-7. Download the zip file to the `conda_recipes/archive_files` directory in your git clone of the [deadline-cloud-samples](https://github.com/aws-deadline/deadline-cloud-samples) repository for submitting package build jobs, and update the Windows source artifact hash in the Red Giant conda build recipe meta.yaml.
+   2. Then move all of the Red Giant plugin folders located under `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to a subfolder called `RGU Plug-ins` located at `Downloads\Red Giant Universe\RGU Plug-ins`. 
+6. Then grab the Red Giant folder under Program Files, move it under the `Downloads\Red Giant Universe\Red Giant`.
+7. Follow similar instructions as the After Effects Conda recipe to get a zip file set up from the Red Giant Universe folder so that you get the hash and push up the zip asset to your S3 bucket.
+8. From the AWS EC2 management console, select the instance you used and terminate it.
+9. Download the zip file to the `conda_recipes/archive_files` directory in your git clone of the [deadline-cloud-samples](https://github.com/aws-deadline/deadline-cloud-samples) repository for submitting package build jobs, and update the Windows source artifact hash in the Red Giant conda build recipe meta.yaml.
