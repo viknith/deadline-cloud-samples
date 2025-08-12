@@ -1,10 +1,8 @@
-# Adobe After Effects 25 conda build recipe
+# Red Giant for After Effects conda build recipe
 
 ## Creating an archive file for Windows
 
-The Windows installer requires Administrator permissions that are not available in most conda package
-build environments, such as on a Deadline Cloud service-managed fleets. Follow these instructions to
-install Adobe After Effects 25 on a freshly created EC2 instance as Administrator, and create an archive file for use by the conda build recipe. If you have a Windows workstation, you can also do step 3 and 5 without starting an EC2 instance.
+The Windows installer requires Administrator permissions that are not available in most conda package build environments, such as on a Deadline Cloud service-managed fleets. Follow these instructions to install Adobe After Effects 25 on a freshly created EC2 instance as Administrator, then install Red Giant, and then create an archive file from the Red Giant files for After Effects to use with a conda build recipe. If you have a Windows workstation, you can also do step 3 and 5 without starting an EC2 instance.
 
 1. Launch a fresh Windows Server 2022 instance.
    1. From the AWS EC2 management console, select the option to Launch instance.
@@ -40,7 +38,7 @@ install Adobe After Effects 25 on a freshly created EC2 instance as Administrato
    2. Then log into the Maxon One application and download Red Giant and Universe.
 5. Package the Red Giant + Universe plugin assets
    1. First, make a directory under your Downloads folder called `Red Giant Universe`.
-   2. Then move all of the Red Giant plugin folders located under `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to a subfolder called `RGU Plug-ins` located at `Downloads\Red Giant Universe\RGU Plug-ins`. 
+   2. Then move all of the Red Giant plugin folders located under `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to a subfolder called `RGU Plug-ins` located at `Downloads\Red Giant Universe\RGU Plug-ins`.
 6. Then grab the Red Giant folder under Program Files, move it under the `Downloads\Red Giant Universe\Red Giant`.
 7. Follow similar instructions as the After Effects Conda recipe to get a zip file set up from the Red Giant Universe folder so that you get the hash and push up the zip asset to your S3 bucket.
 8. From the AWS EC2 management console, select the instance you used and terminate it.
