@@ -2,7 +2,7 @@
 
 ## Creating an archive file for Windows
 
-The Windows installer requires Administrator permissions that are not available in most conda package build environments, such as on a Deadline Cloud service-managed fleets. Follow these instructions to install Adobe After Effects 25 on a freshly created EC2 instance as Administrator, then install Red Giant, and then create an archive file from the Red Giant files for After Effects to use with a conda build recipe. If you have a Windows workstation, you can also do step 3 and 5 without starting an EC2 instance.
+The Windows installer requires Administrator permissions that are not available in most conda package build environments, such as on a Deadline Cloud service-managed fleets. Follow these instructions to install Adobe After Effects 25 on a freshly created EC2 instance as Administrator, then install Red Giant and Universe, and create an archive file containing the Red Giant plugin files and licensing service for use with a conda build recipe. If you have a Windows workstation, you can also do steps 3-5 without starting an EC2 instance.
 
 1. Launch a fresh Windows Server 2022 instance.
    1. From the AWS EC2 management console, select the option to Launch instance.
@@ -31,15 +31,27 @@ The Windows installer requires Administrator permissions that are not available 
    5. Enter the password you set for Administrator after you created the instance. You should now have a remote desktop session to your instance.
 3. Install Adobe After Effects 25 on the instance.
    1. Download Adobe Creative Cloud after logging into your Adobe account.
-   2. Download Adobe After Effects 25 from Creative Cloud App.
+   2. Download Adobe After Effects 25 from Creative Cloud App. Add the Cinema4D with Maxon add-on option.
    3. The After Effects installer will launch. Proceed to install as normal with the components you want included.
-4. Install Red Giant and Universe and package their plugin files
+4. Install Red Giant and Universe.
    1. Log into Maxon and download the Maxon One application to manage the installation of Red Giant and Universe.
-   2. Then log into the Maxon One application and download Red Giant and Universe.
-5. Package the Red Giant + Universe plugin assets
-   1. First, make a directory under your Downloads folder called `Red Giant Universe`.
-   2. Then move all of the Red Giant plugin folders located under `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to a subfolder called `RGU Plug-ins` located at `Downloads\Red Giant Universe\RGU Plug-ins`.
-6. Then grab the Red Giant folder under Program Files, move it under the `Downloads\Red Giant Universe\Red Giant`.
-7. Follow similar instructions as the After Effects Conda recipe to get a zip file set up from the Red Giant Universe folder so that you get the hash and push up the zip asset to your S3 bucket.
-8. From the AWS EC2 management console, select the instance you used and terminate it.
-9. Download the zip file to the `conda_recipes/archive_files` directory in your git clone of the [deadline-cloud-samples](https://github.com/aws-deadline/deadline-cloud-samples) repository for submitting package build jobs, and update the Windows source artifact hash in the Red Giant conda build recipe meta.yaml.
+   2. Log into the Maxon One application and download Red Giant and Universe.
+   3. Install both Red Giant and Universe through the Maxon One application.
+5. Package the Red Giant plugin files and licensing service.
+   1. Create a directory under your Downloads folder called `redgiant`.
+   2. Create a `Plug-ins` subfolder under `redgiant`: `Downloads\redgiant\Plug-ins`.
+   3. Copy all Red Giant plugin folders from `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to `Downloads\redgiant\Plug-ins`.
+   4. Copy the Red Giant licensing service from `C:\Program Files\Red Giant\Services\Red Giant Service.exe` to `Downloads\redgiant\Red Giant Service.exe`.
+6. Create the archive file.
+   1. Open PowerShell and navigate to your Downloads folder.
+   2. Run the following commands to create the archive:
+      1. `Compress-Archive -Path 'redgiant' -DestinationPath Red_Giant_2025_6_0_Universe_2025_3_3_installation.zip`
+      2. `(Get-FileHash -Path "Red_Giant_2025_6_0_Universe_2025_3_3_installation.zip" -Algorithm SHA256).Hash.ToLower()`
+   3. Record the SHA256 hash for later use.
+7. Upload the archive and clean up.
+   1. Upload the archive to your private S3 bucket. You can use a PowerShell command like:
+      `Write-S3Object -BucketName MY_BUCKET_NAME -Key Red_Giant_2025_6_0_Universe_2025_3_3_installation.zip -File Red_Giant_2025_6_0_Universe_2025_3_3_installation.zip`
+   2. From the AWS EC2 management console, select the instance you used and terminate it.
+8. Update the conda recipe.
+   1. Download the zip file to the `conda_recipes/archive_files` directory in your git clone of the [deadline-cloud-samples](https://github.com/aws-deadline/deadline-cloud-samples) repository.
+   2. Update the Windows source artifact hash in the Red Giant conda build recipe meta.yaml with the SHA256 hash from step 6.

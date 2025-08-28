@@ -1,15 +1,19 @@
 {% set name = "redgiant" %}
-{% set version_partial = "2025" %}
-{% set version_minor = "4" %}
-{% set version_patch = "0" %}
-{% set version = version_partial + "." + version_minor + "." + version_patch %}
+{% set rg_version_partial = "2025" %}
+{% set rg_version_minor = "6" %}
+{% set rg_version_patch = "0" %}
+{% set uni_version_partial = "2025" %}
+{% set uni_version_minor = "3" %}
+{% set uni_version_patch = "3" %}
+{% set rg_version = rg_version_partial + "." + rg_version_minor + "." + rg_version_patch %}
+{% set uni_version = uni_version_partial + "." + uni_version_minor + "." + uni_version_patch %}
 
 package:
   name: {{ name }}
   version: {{ version }}
 
 source:
-- url: archive_files/Red_Giant_{{ version.replace(".", "_") }}_installation.zip # [win64]
+- url: archive_files/Red_Giant_{{ rg_version.replace(".", "_") }}_Universe_{{ uni_version.replace(".", "_") }}_installation.zip # [win64]
   sha256: 41c820220adfc970c63f0c2e667679d6d9eafc335ee2f55a12d0eb620ab03d03 # [win64]
   folder: redgiant
 

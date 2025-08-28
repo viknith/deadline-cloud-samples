@@ -2,7 +2,7 @@ condaPlatforms:
   - platform: win-64
     defaultSubmit: true
     sourceArchiveFilename:
-    - Red_Giant_2025_4_0_installation.zip
+    - Red_Giant_2025_6_0_Universe_2025_3_3_installation.zip
     sourceDownloadInstructions: 'Follow the instructions in README.md to construct the archive zip file.'
     buildTool: conda-build
 jobParameters:
