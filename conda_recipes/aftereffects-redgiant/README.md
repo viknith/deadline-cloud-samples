@@ -42,6 +42,7 @@ The Windows installer requires Administrator permissions that are not available 
    2. Create a `Plug-ins` subfolder under `redgiant`: `Downloads\redgiant\Plug-ins`.
    3. Copy all Red Giant plugin folders from `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to `Downloads\redgiant\Plug-ins`.
    4. Copy the Red Giant licensing service from `C:\Program Files\Red Giant\Services\Red Giant Service.exe` to `Downloads\redgiant\Red Giant Service.exe`.
+   5. Go to `C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\Plug-ins\Trapcode`. Copy the contents of this folder and paste under the existing Trapcode folder under `Downloads\redgiant\Plug-ins\Trapcode`.
 6. Create the archive file.
    1. Open PowerShell and navigate to your Downloads folder.
    2. Run the following commands to create the archive:
