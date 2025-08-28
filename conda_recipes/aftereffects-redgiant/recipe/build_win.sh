@@ -25,7 +25,7 @@ set "RG_SERVICE_PATH=$RG_SERVICE_PATH"
 
 :: Starting licensing proxy service as a background process with render-only variable set
 start "" /env MAXON_RENDERONLY=true "%RG_SERVICE_PATH%" --noservice
-timeout /t 5 >nul
+timeout /t 10 >nul
 EOF
 cat "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.bat"
 
@@ -36,6 +36,7 @@ export "RG_SERVICE_PATH=$RG_SERVICE_PATH"
 
 # Starting licensing proxy service as a background process with render-only variable set
 start "" /env MAXON_RENDERONLY=true "\$RG_SERVICE_PATH" --noservice
+sleep 10
 EOF
 cat "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.sh"
 
