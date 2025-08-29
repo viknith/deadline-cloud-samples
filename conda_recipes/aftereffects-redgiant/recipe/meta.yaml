@@ -10,7 +10,7 @@
 
 package:
   name: {{ name }}
-  version: {{ version }}
+  version: {{ rg_version }}
 
 source:
 - url: archive_files/Red_Giant_{{ rg_version.replace(".", "_") }}_Universe_{{ uni_version.replace(".", "_") }}_installation.zip # [win64]
