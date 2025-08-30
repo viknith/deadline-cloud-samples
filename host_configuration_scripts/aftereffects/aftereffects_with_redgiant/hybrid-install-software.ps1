@@ -21,31 +21,51 @@ if (-not (Test-Path $downloadsPath)) {
     New-Item -ItemType Directory -Path $downloadsPath -Force
 }
 
-# Download zip files from S3
-Write-Host "Downloading zip files from S3..."
-aws s3 cp --no-progress "s3://$INSTALLER_S3_BUCKET/$REDGIANT_ZIP" "$downloadsPath\$REDGIANT_ZIP"
-if (-not (Test-Path "$downloadsPath\$REDGIANT_ZIP")) { throw "Red Giant zip download failed" }
+Write-Host "Setting system environment variables..."
 
-aws s3 cp --no-progress "s3://$INSTALLER_S3_BUCKET/$MAXON_ZIP" "$downloadsPath\$MAXON_ZIP"
-if (-not (Test-Path "$downloadsPath\$MAXON_ZIP")) { throw "Maxon zip download failed" }
-
-# Extract Red Giant zip to Program Files
-Write-Host "Extracting Red Giant to Program Files..."
-Expand-Archive -Path "$downloadsPath\$REDGIANT_ZIP" -DestinationPath $programFilesPath -Force
-
-# Extract Maxon zip to Program Files
-Write-Host "Extracting Maxon to Program Files..."
-Expand-Archive -Path "$downloadsPath\$MAXON_ZIP" -DestinationPath $programFilesPath -Force
-
-# Start Red Giant Service executable
-Write-Host "Starting Red Giant Service..."
-Start-Process -FilePath "C:\Program Files\Red Giant\Services\Red Giant Service.exe" -WindowStyle Hidden
+[System.Environment]::SetEnvironmentVariable("MAXON_RENDERONLY", "true", [System.EnvironmentVariableTarget]::Machine)
 
 # Set Red Giant license server for Customer Managed Fleet (CMF)
 if ($is_cmf) {
     Write-Host "Setting Red Giant license server for CMF..."
     [System.Environment]::SetEnvironmentVariable("redshift_LICENSE", "7055@$vpc_endpoint", [System.EnvironmentVariableTarget]::Machine)
 }
+
+# Download and extract in parallel
+Write-Host "Downloading and extracting files in parallel..."
+
+# Red Giant: download and extract job
+$redGiantJob = Start-Job -ScriptBlock {
+    param($bucket, $file, $downloadPath, $extractPath)
+    $zipFile = "$downloadPath\$file"
+    aws s3 cp --no-progress "s3://$bucket/Installers/$file" $zipFile
+    if (-not (Test-Path $zipFile)) { throw "Red Giant zip download failed" }
+    Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
+} -ArgumentList $INSTALLER_S3_BUCKET, $REDGIANT_ZIP, $downloadsPath, $programFilesPath
+
+# Maxon: download and extract job
+$maxonJob = Start-Job -ScriptBlock {
+    param($bucket, $file, $downloadPath, $extractPath)
+    $zipFile = "$downloadPath\$file"
+    aws s3 cp --no-progress "s3://$bucket/Installers/$file" $zipFile
+    if (-not (Test-Path $zipFile)) { throw "Maxon zip download failed" }
+    Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
+} -ArgumentList $INSTALLER_S3_BUCKET, $MAXON_ZIP, $downloadsPath, $programFilesPath
+
+# Wait for Red Giant job to complete, then start service
+Write-Host "Waiting for Red Giant installation to complete..."
+Wait-Job $redGiantJob | Out-Null
+Remove-Job $redGiantJob
+
+Write-Host "Starting Red Giant Service..."
+Start-Process -FilePath "C:\Program Files\Red Giant\Services\Red Giant Service.exe" -ArgumentList "--noservice"
+
+# Wait for Maxon job to complete
+Write-Host "Waiting for Maxon installation to complete..."
+Wait-Job $maxonJob | Out-Null
+Remove-Job $maxonJob
+
+Write-Host "All installations completed."
 
 # Calculate total time
 $scriptEndTime = Get-Date
