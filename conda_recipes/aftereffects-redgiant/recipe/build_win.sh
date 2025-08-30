@@ -15,30 +15,22 @@ cp -r "$SRC_DIR/redgiant/Plug-ins"/* $AE_PLUGINS_DIRECTORY
 mkdir -p "$PREFIX/etc/conda/activate.d"
 mkdir -p "$PREFIX/etc/conda/deactivate.d"
 
-# TODO: Fix the timeout thing to use some kind of for loop to verify the PID is defined.
 cat <<EOF > "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.bat"
 set "RG_VERSION=$RG_VERSION"
-set "RG_SERVICE_PATH=$RG_SERVICE_PATH"
 EOF
 cat "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.bat"
 
-
 cat <<EOF > "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.sh"
 export "RG_VERSION=$RG_VERSION"
-export "RG_SERVICE_PATH=$RG_SERVICE_PATH"
 EOF
 cat "$PREFIX/etc/conda/activate.d/$PKG_NAME-$PKG_VERSION-vars.sh"
 
-
 cat <<EOF > "$PREFIX/etc/conda/deactivate.d/$PKG_NAME-$PKG_VERSION-vars.bat"
 set RG_VERSION=
-set RG_SERVICE_PATH=
 EOF
 cat "$PREFIX/etc/conda/deactivate.d/$PKG_NAME-$PKG_VERSION-vars.bat"
 
-
 cat <<EOF > "$PREFIX/etc/conda/deactivate.d/$PKG_NAME-$PKG_VERSION-vars.sh"
 unset RG_VERSION
-unset RG_SERVICE_PATH
 EOF
 cat "$PREFIX/etc/conda/deactivate.d/$PKG_NAME-$PKG_VERSION-vars.sh"
