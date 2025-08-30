@@ -8,6 +8,7 @@ $vpc_endpoint = "vpce-07359508fe8e4d605-sznn09sg.vpce-svc-0c4b155bc5b761304.us-w
 $INSTALLER_S3_BUCKET = "viknith-job-attachments"  # Your S3 bucket name
 $REDGIANT_ZIP = "Red_Giant_Windows_installation.zip"
 $MAXON_ZIP = "Maxon_Windows_installation.zip"
+$ADOBE_ZIP = "Adobe_Windows_installation.zip"
 
 # Paths
 $downloadsPath = "C:\Temp"
@@ -52,6 +53,15 @@ $maxonJob = Start-Job -ScriptBlock {
     Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
 } -ArgumentList $INSTALLER_S3_BUCKET, $MAXON_ZIP, $downloadsPath, $programFilesPath
 
+# Adobe: download and extract job (I'm pretty sure this is not needed but I did it just in case)
+$adobeJob = Start-Job -ScriptBlock {
+    param($bucket, $file, $downloadPath, $extractPath)
+    $zipFile = "$downloadPath\$file"
+    aws s3 cp --no-progress "s3://$bucket/Installers/$file" $zipFile
+    if (-not (Test-Path $zipFile)) { throw "Adobe zip download failed" }
+    Expand-Archive -Path $zipFile -DestinationPath $extractPath -Force
+} -ArgumentList $INSTALLER_S3_BUCKET, $ADOBE_ZIP, $downloadsPath, $programFilesPath
+
 # Wait for Red Giant job to complete, then start service
 Write-Host "Waiting for Red Giant installation to complete..."
 Wait-Job $redGiantJob | Out-Null
@@ -64,6 +74,11 @@ Start-Process -FilePath "C:\Program Files\Red Giant\Services\Red Giant Service.e
 Write-Host "Waiting for Maxon installation to complete..."
 Wait-Job $maxonJob | Out-Null
 Remove-Job $maxonJob
+
+# Wait for Adobe job to complete
+Write-Host "Waiting for Adobe installation to complete..."
+Wait-Job $adobeJob | Out-Null
+Remove-Job $adobeJob
 
 Write-Host "All installations completed."
 
