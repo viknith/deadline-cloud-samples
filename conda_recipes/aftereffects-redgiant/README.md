@@ -41,8 +41,7 @@ The Windows installer requires Administrator permissions that are not available 
    1. Create a directory under your Downloads folder called `redgiant`.
    2. Create a `Plug-ins` subfolder under `redgiant`: `Downloads\redgiant\Plug-ins`.
    3. Copy all Red Giant plugin folders from `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` to `Downloads\redgiant\Plug-ins`.
-   4. Copy the Red Giant licensing service from `C:\Program Files\Red Giant\Services\Red Giant Service.exe` to `Downloads\redgiant\Red Giant Service.exe`.
-   5. Go to `C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\Plug-ins\Trapcode`. Copy the contents of this folder and paste under the existing Trapcode folder under `Downloads\redgiant\Plug-ins\Trapcode`.
+   4. Go to `C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\Plug-ins\Trapcode`. Copy the contents of this folder and paste under the existing Trapcode folder under `Downloads\redgiant\Plug-ins\Trapcode`.
 6. Create the archive file.
    1. Open PowerShell and navigate to your Downloads folder.
    2. Run the following commands to create the archive:
@@ -56,3 +55,5 @@ The Windows installer requires Administrator permissions that are not available 
 8. Update the conda recipe.
    1. Download the zip file to the `conda_recipes/archive_files` directory in your git clone of the [deadline-cloud-samples](https://github.com/aws-deadline/deadline-cloud-samples) repository.
    2. Update the Windows source artifact hash in the Red Giant conda build recipe meta.yaml with the SHA256 hash from step 6.
+
+
