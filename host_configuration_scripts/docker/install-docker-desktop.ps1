@@ -73,22 +73,14 @@ if (-not (Test-Path $dockerPath)) {
     }
 }
 
-# Step 6: Initialize Docker Engine
-Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Initializing Docker Engine..."
+# Step 6: Configure Docker Engine for automatic startup
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Configuring Docker Engine..."
 try {
     & "C:\Program Files\Docker\Docker\resources\dockerd.exe" --register-service
     Set-Service -Name "docker" -StartupType Automatic
-    Start-Service docker -ErrorAction Stop
-    Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Docker Engine started successfully"
-    
-    # Test Docker functionality
-    $dockerTest = docker version 2>$null
-    if ($dockerTest) {
-        Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Docker installation verified - engine is running"
-    }
+    Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Docker Engine configured for automatic startup"
 } catch {
-    Write-Warning "[$((Get-Date).ToString('HH:mm:ss'))] Failed to start Docker Engine: $($_.Exception.Message)"
-    Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Docker Engine can be started manually after reboot"
+    Write-Warning "[$((Get-Date).ToString('HH:mm:ss'))] Failed to configure Docker Engine: $($_.Exception.Message)"
 }
 
 $totalDuration = ($installEndTime - $scriptStartTime).TotalMinutes
