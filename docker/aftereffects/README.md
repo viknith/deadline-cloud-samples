@@ -7,8 +7,8 @@ This guide covers building a Windows Docker container with Adobe After Effects, 
 ```
 INPUT                    PROCESS                     OUTPUT
 ┌─────────────────┐     ┌─────────────────┐        ┌─────────────────┐
-│ S3 Bucket       │     │ Docker Build    │        │ ECR Repository  │
-│ ├── AE.zip      │────►│ ├── Download    │───────►│ ├── ae-redgiant │
+│ Local Files     │     │ Docker Build    │        │ ECR Repository  │
+│ ├── AE.zip      │────►│ ├── Copy Files  │───────►│ ├── ae-redgiant │
 │ ├── RG.exe      │     │ ├── Install     │        │ │   :latest     │
 │ ├── Universe    │     │ ├── Configure   │        │ └── 7GB image   │
 │ └── Maxon.exe   │     │ └── 15-20 min   │        │     ready       │
@@ -17,16 +17,16 @@ INPUT                    PROCESS                     OUTPUT
 Local Files              Build Machine               Cloud Storage
 ┌─────────────────┐     ┌─────────────────┐        ┌─────────────────┐
 │ ├── Dockerfile  │────►│ docker build    │───────►│ docker push     │
-│ └── install.ps1 │     │ -t ae-redgiant  │        │ to ECR          │
-└─────────────────┘     └─────────────────┘        └─────────────────┘
+│ ├── install.ps1 │     │ -t ae-redgiant  │        │ to ECR          │
+│ └── archive_files/│    └─────────────────┘        └─────────────────┘
+└─────────────────┘
 ```
 
 ## Prerequisites
 
-- AWS CLI configured with credentials
 - Python installed locally
 - Docker Desktop with Windows containers enabled
-- S3 bucket with software installers (see [host configuration guide](../../host_configuration_scripts/aftereffects/aftereffects_redgiant/README.md))
+- Required installer files downloaded to `archive_files/` directory
 
 ## Project Structure
 
@@ -35,20 +35,27 @@ Create the following directory structure:
 ```
 ae-docker-build/
 ├── Dockerfile
-├── install-software.ps1
+├── install-software-with-local-installers.ps1
+├── archive_files/
+│   ├── After Effects_en_US_WIN_64.zip
+│   ├── RedGiant-2025.6.0-Win.exe
+│   ├── Universe-2025.3.3_Win.exe
+│   ├── Maxon_App_2025.4.2_Win.exe
+│   └── MicrosoftEdgeWebView2RuntimeInstallerX64.exe
 └── README.md
 ```
 
-## Step 1: Update Configuration
+## Step 1: Download Required Installer Files
 
-Edit `install-software.ps1` and update these variables:
+Download the following files and place them in the `archive_files/` directory:
 
-```powershell
-$INSTALLER_S3_BUCKET = "your-actual-bucket-name"  # Replace with your S3 bucket
-$vpc_endpoint = "your-vpc-endpoint"  # Replace if using CMF
-```
+- **After Effects_en_US_WIN_64.zip** - Adobe After Effects 2025 installer
+- **RedGiant-2025.6.0-Win.exe** - Red Giant plugins installer  
+- **Universe-2025.3.3_Win.exe** - Universe plugins installer
+- **Maxon_App_2025.4.2_Win.exe** - Maxon App installer
+- **MicrosoftEdgeWebView2RuntimeInstallerX64.exe** - WebView2 Runtime
 
-Verify installer file names match what's in your S3 bucket.
+Verify all files are present before proceeding to the build step.
 
 ## Step 2: Create Dockerfile
 
@@ -56,8 +63,9 @@ Verify installer file names match what's in your S3 bucket.
 FROM mcr.microsoft.com/windows/servercore:ltsc2022
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 
-COPY install-software.ps1 C:/
-RUN C:/install-software.ps1
+COPY archive_files/ C:/installers/
+COPY install-software-with-local-installers.ps1 C:/
+RUN C:/install-software-with-local-installers.ps1
 
 WORKDIR C:/workspace
 ```
@@ -74,7 +82,7 @@ aws ecr create-repository --repository-name ae-redgiant --region us-west-2
 docker build -t ae-redgiant-windows .
 ```
 
-> **Note**: This build process will take 15-20 minutes as it downloads and installs all software.
+> **Note**: This build process will take 15-20 minutes as it copies and installs all software from local files.
 
 ## Step 5: Tag and Push to ECR
 
@@ -318,7 +326,7 @@ deadline bundle submit job_bundles/aftereffects_docker_render \
 ## Complete Workflow Summary
 
 ```
-Phase 1: S3 Installers + Dockerfile → Docker Build → ECR Image
+Phase 1: Local Installers + Dockerfile → Docker Build → ECR Image
 Phase 2: ECR Image + AE Project → Docker Run → Rendered Frames
 ```
 
@@ -343,8 +351,8 @@ Phase 2: ECR Image + AE Project → Docker Run → Rendered Frames
 
 ## Troubleshooting
 
-- **Build fails**: Check AWS credentials and S3 bucket access
-- **Installer not found**: Verify file names in S3 match script variables
+- **Build fails**: Check that all installer files are present in `archive_files/` directory
+- **Installer not found**: Verify file names in `archive_files/` match script variables
 - **Permission denied**: Ensure Docker Desktop is running with Windows containers enabled
 - **Container not found**: Verify ECR registry URI in template
 - **Render fails**: Check After Effects project compatibility and render queue settings
