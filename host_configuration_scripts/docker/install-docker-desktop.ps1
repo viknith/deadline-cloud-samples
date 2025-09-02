@@ -73,15 +73,9 @@ if (-not (Test-Path $dockerPath)) {
     }
 }
 
-# Step 6: Configure Docker Engine for automatic startup
-Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Configuring Docker Engine..."
-try {
-    & "C:\Program Files\Docker\Docker\resources\dockerd.exe" --register-service
-    Set-Service -Name "docker" -StartupType Automatic
-    Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Docker Engine configured for automatic startup"
-} catch {
-    Write-Warning "[$((Get-Date).ToString('HH:mm:ss'))] Failed to configure Docker Engine: $($_.Exception.Message)"
-}
+# Step 6: Docker Desktop configuration complete
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Docker Desktop installation complete"
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Docker Desktop will manage its own engine after reboot"
 
 $totalDuration = ($installEndTime - $scriptStartTime).TotalMinutes
 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Installation complete in $([math]::Round($totalDuration, 2)) minutes"
