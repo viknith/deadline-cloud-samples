@@ -123,6 +123,14 @@ steps:
             Write-Host "RQ Index: {{Param.RenderQueueIndex}}"
             Write-Host "Chunk: {{Task.Param.Index}} (size: {{Param.ChunkSize}})"
 
+            # Authenticate with ECR
+            Write-Host "Authenticating with ECR..."
+            aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}}
+            
+            if ($LASTEXITCODE -ne 0) {
+                throw "ECR authentication failed with exit code $LASTEXITCODE"
+            }
+
             # Run Docker container with call_aerender.py
             docker run --rm `
               -v "{{Session.WorkingDirectory}}:C:\workspace" `

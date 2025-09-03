@@ -1,28 +1,25 @@
-#!/usr/bin/env python3
-"""
-Create output directory if it doesn't exist.
-"""
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 import argparse
 import os
-import sys
-from pathlib import Path
 
+# Set up the argument parser
+parser = argparse.ArgumentParser(
+    description="Create output folders from a comma-separated list."
+)
+parser.add_argument("outputs", type=str, help="Comma-separated list of output folders")
 
-def main():
-    parser = argparse.ArgumentParser(description='Create output directory')
-    parser.add_argument('output_dir', help='Output directory path')
-    
-    args = parser.parse_args()
-    
-    try:
-        output_path = Path(args.output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        print(f"Output directory created: {output_path}")
-        return 0
-    except Exception as e:
-        print(f"ERROR: Failed to create output directory: {e}")
-        return 1
+# Parse the arguments
+args = parser.parse_args()
 
+# Split the comma-separated paths into a list
+output_list = args.outputs.split(",")
 
-if __name__ == '__main__':
-    sys.exit(main())
+print(f"Creating output folders {output_list}")
+
+# Loop through each output path and create the necessary folder
+for output in output_list:
+    # Create the directory if it doesn't exist (equivalent to 'md -Force' in PowerShell)
+    os.makedirs(output, exist_ok=True)
+
+print("Output folders created.")
