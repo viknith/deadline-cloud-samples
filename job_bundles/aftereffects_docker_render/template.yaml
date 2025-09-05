@@ -84,6 +84,15 @@ parameterDefinitions:
     description: Directory containing scripts
 
 jobEnvironments:
+  - name: Start Docker Desktop
+    description: Start Docker Desktop and wait for it to be ready
+    script:
+      actions:
+        onEnter:
+          command: powershell
+          args:
+            - "-Command"
+            - "Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'; do { Start-Sleep 5; Write-Host 'Waiting for Docker Desktop...' } while (-not (docker version 2>$null)); Write-Host 'Docker Desktop is ready'"
   - name: Create Output Directories
     description: Create output directories
     script:

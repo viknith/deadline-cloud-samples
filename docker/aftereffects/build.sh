@@ -3,7 +3,7 @@ set -e
 
 # Configuration
 ECR_REGISTRY="484745417699.dkr.ecr.us-west-2.amazonaws.com"
-REPOSITORY_NAME="ae-redgiant"
+REPOSITORY_NAME="ae-redgiant-full"
 REGION="us-west-2"
 IMAGE_TAG="latest"
 
@@ -14,7 +14,7 @@ echo "Creating ECR repository..."
 aws ecr create-repository --repository-name $REPOSITORY_NAME --region $REGION || echo "Repository already exists"
 
 # Step 2: Build Docker image
-echo "Building Docker image (this will take 15-20 minutes)..."
+echo "Building Docker image (this will take 45-60 minutes)..."
 docker build -t ae-redgiant-windows .
 
 # Step 3: Get ECR login
