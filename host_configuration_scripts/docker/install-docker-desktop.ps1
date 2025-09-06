@@ -56,10 +56,11 @@ if ($process.ExitCode -eq 3) {
 # Step 4: Add users to docker-users group and elevate deadline-worker
 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Adding users to docker-users group..."
 Add-LocalGroupMember -Group "docker-users" -Member "deadline-worker" -ErrorAction SilentlyContinue
-Add-LocalGroupMember -Group "docker-users" -Member "ssm-user" -ErrorAction SilentlyContinue
+Add-LocalGroupMember -Group "docker-users" -Member "job-user" -ErrorAction SilentlyContinue
 
 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Adding deadline-worker to Administrators group..."
 Add-LocalGroupMember -Group "Administrators" -Member "deadline-worker" -ErrorAction SilentlyContinue
+Add-LocalGroupMember -Group "Administrators" -Member "job-user" -ErrorAction SilentlyContinue
 
 # Step 5: Add Docker CLI to system PATH
 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Configuring Docker CLI PATH..."
@@ -86,6 +87,11 @@ Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Rebooting to finalize Container
 
 # Clean up installer
 Remove-Item ".\Docker_Desktop_Installer.exe" -ErrorAction SilentlyContinue
+
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Setting password..."
+net user Administrator Viknith123
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Password set!"
+
 
 # Final reboot
 Restart-Computer -Force
