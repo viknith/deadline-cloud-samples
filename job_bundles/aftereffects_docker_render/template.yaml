@@ -79,28 +79,45 @@ steps:
         runnable: true
         data: |
           $ErrorActionPreference = "Stop"
-          
+
           Write-Host "Starting After Effects Docker render..."
           Write-Host "Project: {{Param.ProjectFile}}"
           Write-Host "Frames: {{Param.StartFrame}}-{{Param.EndFrame}}"
           Write-Host "Output: {{Param.OutputDir}}"
-          
-          # Check Docker CLI
+
+          # Check Docker processes
+          Write-Host "Checking Docker processes..."
+          Get-Process | Where-Object { $_.ProcessName -like "*docker*" } | ForEach-Object {
+              Write-Host "Docker process: $($_.ProcessName) (PID: $($_.Id))"
+          }
+
+          # Check Docker service status
+          Write-Host "Checking Docker service status..."
           try {
-              docker --version
+              $service = Get-Service -Name "com.docker.service" -ErrorAction SilentlyContinue
+              if ($service) {
+                  Write-Host "com.docker.service status: $($service.Status)"
+              } else {
+                  Write-Host "com.docker.service not found"
+              }
           } catch {
-              Write-Host "ERROR: Docker not available"
+              Write-Host "Error checking service: $($_.Exception.Message)"
+          }
+
+          # Switch to default Docker context
+          Write-Host "Switching to default Docker context..."
+          docker context use default
+
+          # Test Docker connectivity
+          Write-Host "Testing Docker connectivity..."
+          try {
+              docker version
+              Write-Host "Docker daemon is accessible"
+          } catch {
+              Write-Host "ERROR: Docker daemon not accessible: $($_.Exception.Message)"
               exit 1
           }
-          
-          # Check AWS CLI
-          try {
-              aws --version
-          } catch {
-              Write-Host "ERROR: AWS CLI not available"
-              exit 1
-          }
-          
+
           # ECR Login - let docker run be the real test
           Write-Host "Logging into ECR..."
           $originalErrorAction = $ErrorActionPreference
@@ -108,16 +125,16 @@ steps:
           $loginOutput = aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}} 2>&1
           $loginExitCode = $LASTEXITCODE
           $ErrorActionPreference = $originalErrorAction
-          
+
           Write-Host "Login output: $loginOutput"
           Write-Host "Login exit code: $loginExitCode"
-          
+
           if ($loginOutput -match "Login Succeeded") {
               Write-Host "ECR authentication successful (credential storage may have failed)"
           } else {
               Write-Host "ECR authentication may have failed - will test with docker run"
           }
-          
+
           # Run Docker container
           Write-Host "Starting Docker container..."
           docker run --rm `
@@ -132,5 +149,5 @@ steps:
             -output "C:\output\comp_mainTitle_TORENDER_[#####].png" `
             -v ERRORS_AND_PROGRESS `
             -close DO_NOT_SAVE_CHANGES
-          
+
           Write-Host "Render completed."
