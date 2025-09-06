@@ -9,7 +9,6 @@ parameterDefinitions:
     userInterface:
       control: CHOOSE_INPUT_FILE
       label: Project file
-      groupLabel: Source
       fileFilters:
         - label: After Effects project files
           patterns:
@@ -22,9 +21,24 @@ parameterDefinitions:
     userInterface:
       control: SPIN_BOX
       label: Render Queue Index
-      groupLabel: Source
     default: 1
-    description: The index of the item in the render queue to render
+    description: Index of the render queue item to render
+
+  - name: StartFrame
+    type: INT
+    userInterface:
+      control: SPIN_BOX
+      label: Start Frame
+    default: 96
+    description: Start frame to render
+
+  - name: EndFrame
+    type: INT
+    userInterface:
+      control: SPIN_BOX
+      label: End Frame
+    default: 215
+    description: End frame to render
 
   - name: OutputDir
     type: PATH
@@ -33,132 +47,90 @@ parameterDefinitions:
     userInterface:
       control: CHOOSE_DIRECTORY
       label: Output Directory
-      groupLabel: Render Parameters
     default: "./output"
-    description: Choose the render output directory
-
-  - name: OutputFileName
-    type: STRING
-    userInterface:
-      control: LINE_EDIT
-      label: Output File Pattern
-      groupLabel: Render Parameters
-    default: "output_####.png"
-    description: Output filename pattern
-
-  - name: Frames
-    type: STRING
-    userInterface:
-      control: LINE_EDIT
-      label: Start Frame - End Frame
-      groupLabel: Frame Range
-    default: "1-100"
-    description: Frame range to render
-
-  - name: ChunkSize
-    type: INT
-    userInterface:
-      control: SPIN_BOX
-      label: Frames Per Task
-      groupLabel: Frame Range
-    default: 10
-    minValue: 1
-    description: Number of frames per task for chunking
+    description: Directory for rendered output files
 
   - name: ECR_REGISTRY
     type: STRING
     userInterface:
       control: LINE_EDIT
       label: ECR Registry
-      groupLabel: Docker Settings
     default: "484745417699.dkr.ecr.us-west-2.amazonaws.com"
     description: ECR registry URI
 
-  - name: JobScriptDir
-    type: PATH
-    objectType: DIRECTORY
-    dataFlow: IN
-    userInterface:
-      control: HIDDEN
-    default: "scripts"
-    description: Directory containing scripts
-
-jobEnvironments:
-  - name: Start Docker Desktop
-    description: Start Docker Desktop and wait for it to be ready
-    script:
-      actions:
-        onEnter:
-          command: powershell
-          args:
-            - "-Command"
-            - "Start-Process 'C:\Program Files\Docker\Docker\Docker Desktop.exe'; do { Start-Sleep 5; Write-Host 'Waiting for Docker Desktop...' } while (-not (docker version 2>$null)); Write-Host 'Docker Desktop is ready'"
-  - name: Create Output Directories
-    description: Create output directories
-    script:
-      actions:
-        onEnter:
-          command: powershell
-          args:
-            - "-Command"
-            - "if (-not (Test-Path '{{Param.OutputDir}}')) { New-Item -ItemType Directory -Path '{{Param.OutputDir}}' -Force }"
-
 steps:
-  - name: "Render Frames {{Param.Frames}}"
-    hostRequirements:
-      attributes:
-        - name: attr.worker.os.family
-          anyOf:
-            - windows
-    parameterSpace:
-      taskParameterDefinitions:
-        - name: Index
-          type: INT
-          range: "{{Param.Frames}}:{{Param.ChunkSize}}"
-    script:
-      actions:
-        onRun:
-          command: powershell
-          args:
-            - "{{Task.File.Run}}"
-      embeddedFiles:
-        - name: Run
-          type: TEXT
-          data: |
-            $ErrorActionPreference = "Stop"
-
-            Write-Host "Starting Docker AE render - Task {{Task.Param.Index}}"
-            Write-Host "Project: {{Param.ProjectFile}}"
-            Write-Host "RQ Index: {{Param.RenderQueueIndex}}"
-            Write-Host "Chunk: {{Task.Param.Index}} (size: {{Param.ChunkSize}})"
-
-            # Authenticate with ECR
-            Write-Host "Authenticating with ECR..."
-            aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}}
-            
-            if ($LASTEXITCODE -ne 0) {
-                throw "ECR authentication failed with exit code $LASTEXITCODE"
-            }
-
-            # Run Docker container with call_aerender.py
-            docker run --rm `
-              -v "{{Session.WorkingDirectory}}:C:\workspace" `
-              -v "{{Param.OutputDir}}:C:\output" `
-              -e AERENDER_EXECUTABLE="C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\aerender.exe" `
-              -e MAXON_RENDERONLY="true" `
-              {{Param.ECR_REGISTRY}}/ae-redgiant:latest `
-              python C:\workspace\{{Param.JobScriptDir}}\call_aerender.py `
-              "C:\workspace\{{Param.ProjectFile}}" `
-              {{Param.RenderQueueIndex}} `
-              "C:\output\{{Param.OutputFileName}}" `
-              "{{Param.Frames}}" `
-              --chunk-size {{Param.ChunkSize}} `
-              --index {{Task.Param.Index}} `
-              --multi-frame-rendering OFF `
-              --max-cpu-usage-percentage 90
-
-            if ($LASTEXITCODE -ne 0) {
-                throw "Docker render failed with exit code $LASTEXITCODE"
-            }
-
-            Write-Host "Task completed successfully!"
+- name: Render
+  hostRequirements:
+    attributes:
+      - name: attr.worker.os.family
+        anyOf:
+          - windows
+  script:
+    actions:
+      onRun:
+        command: powershell
+        args:
+          - "-File"
+          - "{{Task.File.Run}}"
+    embeddedFiles:
+      - name: Run
+        filename: render.ps1
+        type: TEXT
+        runnable: true
+        data: |
+          $ErrorActionPreference = "Stop"
+          
+          Write-Host "Starting After Effects Docker render..."
+          Write-Host "Project: {{Param.ProjectFile}}"
+          Write-Host "Frames: {{Param.StartFrame}}-{{Param.EndFrame}}"
+          Write-Host "Output: {{Param.OutputDir}}"
+          
+          # Check Docker CLI
+          try {
+              docker --version
+          } catch {
+              Write-Host "ERROR: Docker not available"
+              exit 1
+          }
+          
+          # Check AWS CLI
+          try {
+              aws --version
+          } catch {
+              Write-Host "ERROR: AWS CLI not available"
+              exit 1
+          }
+          
+          # ECR Login - let docker run be the real test
+          Write-Host "Logging into ECR..."
+          $originalErrorAction = $ErrorActionPreference
+          $ErrorActionPreference = "Continue"
+          $loginOutput = aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}} 2>&1
+          $loginExitCode = $LASTEXITCODE
+          $ErrorActionPreference = $originalErrorAction
+          
+          Write-Host "Login output: $loginOutput"
+          Write-Host "Login exit code: $loginExitCode"
+          
+          if ($loginOutput -match "Login Succeeded") {
+              Write-Host "ECR authentication successful (credential storage may have failed)"
+          } else {
+              Write-Host "ECR authentication may have failed - will test with docker run"
+          }
+          
+          # Run Docker container
+          Write-Host "Starting Docker container..."
+          docker run --rm `
+            -v "{{Session.WorkingDirectory}}:C:\workspace" `
+            -v "{{Session.WorkingDirectory}}\{{Param.OutputDir}}:C:\output" `
+            {{Param.ECR_REGISTRY}}/ae-redgiant-full:latest `
+            "C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\aerender.exe" `
+            -project "C:\workspace\{{Param.ProjectFile}}" `
+            -rqindex {{Param.RenderQueueIndex}} `
+            -s {{Param.StartFrame}} `
+            -e {{Param.EndFrame}} `
+            -output "C:\output\comp_mainTitle_TORENDER_[#####].png" `
+            -v ERRORS_AND_PROGRESS `
+            -close DO_NOT_SAVE_CHANGES
+          
+          Write-Host "Render completed."

@@ -67,7 +67,7 @@ aftereffects_docker_render/
 
 ## Troubleshooting
 
-- **Container not found**: Verify ECR registry URI and image exists
+- **Container not found**: Verify ECR registry URI and `ae-redgiant-full` image exists
 - **Permission denied**: Ensure Docker Desktop is running with Windows containers
 - **Render fails**: Check After Effects project compatibility and render queue settings
 - **Missing fonts**: Ensure fonts are in a `fonts/` directory relative to the project file
