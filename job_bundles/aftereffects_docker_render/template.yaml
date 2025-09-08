@@ -78,65 +78,81 @@ steps:
         type: TEXT
         runnable: true
         data: |
-          $ErrorActionPreference = "Stop"
+          $logFile = "C:\temp\docker_render.log"
 
-          Write-Host "Starting After Effects Docker render..."
-          Write-Host "Project: {{Param.ProjectFile}}"
-          Write-Host "Frames: {{Param.StartFrame}}-{{Param.EndFrame}}"
-          Write-Host "Output: {{Param.OutputDir}}"
-
-          # Check Docker processes
-          Write-Host "Checking Docker processes..."
-          Get-Process | Where-Object { $_.ProcessName -like "*docker*" } | ForEach-Object {
-              Write-Host "Docker process: $($_.ProcessName) (PID: $($_.Id))"
+          if (-not (Test-Path "C:\temp")) {
+              New-Item -ItemType Directory -Path "C:\temp" -Force
           }
 
-          # Check Docker service status
-          Write-Host "Checking Docker service status..."
+          Write-Host "Starting Docker render process..."
+
+          Write-Host "Running elevated Docker commands..."
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass", "-File", "{{Task.File.DockerRender}}" -Verb RunAs -Wait
+
+          Write-Host "=== Process Output ==="
+          if (Test-Path $logFile) {
+              Get-Content $logFile | ForEach-Object { Write-Host $_ }
+          } else {
+              Write-Host "No log file found"
+          }
+
+          Remove-Item $logFile -ErrorAction SilentlyContinue
+      - name: DockerRender
+        filename: docker_render.ps1
+        type: TEXT
+        runnable: true
+        data: |
+          $logFile = "C:\temp\docker_render.log"
+
+          function Log($message) {
+              $message | Out-File -FilePath $logFile -Append -Encoding UTF8
+          }
+
+          Log "Starting After Effects Docker render..."
+          Log "Project: {{Param.ProjectFile}}"
+          Log "Frames: {{Param.StartFrame}}-{{Param.EndFrame}}"
+          Log "Output: {{Param.OutputDir}}"
+
+          Log "Checking Docker processes..."
+          Get-Process | Where-Object { $_.ProcessName -like "*docker*" } | ForEach-Object {
+              Log "Docker process: $($_.ProcessName) (PID: $($_.Id))"
+          }
+
+          Log "Checking Docker service status..."
           try {
               $service = Get-Service -Name "com.docker.service" -ErrorAction SilentlyContinue
               if ($service) {
-                  Write-Host "com.docker.service status: $($service.Status)"
+                  Log "com.docker.service status: $($service.Status)"
               } else {
-                  Write-Host "com.docker.service not found"
+                  Log "com.docker.service not found"
               }
           } catch {
-              Write-Host "Error checking service: $($_.Exception.Message)"
+              Log "Error checking service: $($_.Exception.Message)"
           }
 
-          # Switch to default Docker context
-          Write-Host "Switching to default Docker context..."
-          docker context use default
+          Log "Switching to default Docker context..."
+          docker context use default 2>&1 | ForEach-Object { Log $_ }
 
-          # Test Docker connectivity
-          Write-Host "Testing Docker connectivity..."
+          Log "Testing Docker connectivity..."
           try {
-              docker version
-              Write-Host "Docker daemon is accessible"
+              docker version 2>&1 | ForEach-Object { Log $_ }
+              Log "Docker daemon is accessible"
           } catch {
-              Write-Host "ERROR: Docker daemon not accessible: $($_.Exception.Message)"
+              Log "ERROR: Docker daemon not accessible: $($_.Exception.Message)"
               exit 1
           }
 
-          # ECR Login - let docker run be the real test
-          Write-Host "Logging into ECR..."
-          $originalErrorAction = $ErrorActionPreference
-          $ErrorActionPreference = "Continue"
+          Log "Logging into ECR..."
           $loginOutput = aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}} 2>&1
-          $loginExitCode = $LASTEXITCODE
-          $ErrorActionPreference = $originalErrorAction
-
-          Write-Host "Login output: $loginOutput"
-          Write-Host "Login exit code: $loginExitCode"
+          $loginOutput | ForEach-Object { Log $_ }
 
           if ($loginOutput -match "Login Succeeded") {
-              Write-Host "ECR authentication successful (credential storage may have failed)"
+              Log "ECR authentication successful"
           } else {
-              Write-Host "ECR authentication may have failed - will test with docker run"
+              Log "ECR authentication may have failed - will test with docker run"
           }
 
-          # Run Docker container
-          Write-Host "Starting Docker container..."
+          Log "Starting Docker container..."
           docker run --rm `
             -v "{{Session.WorkingDirectory}}:C:\workspace" `
             -v "{{Session.WorkingDirectory}}\{{Param.OutputDir}}:C:\output" `
@@ -148,6 +164,6 @@ steps:
             -e {{Param.EndFrame}} `
             -output "C:\output\comp_mainTitle_TORENDER_[#####].png" `
             -v ERRORS_AND_PROGRESS `
-            -close DO_NOT_SAVE_CHANGES
+            -close DO_NOT_SAVE_CHANGES 2>&1 | ForEach-Object { Log $_ }
 
-          Write-Host "Render completed."
+          Log "Render completed."

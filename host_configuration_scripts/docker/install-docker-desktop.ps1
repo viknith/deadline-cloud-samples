@@ -83,7 +83,10 @@ Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Docker Desktop will manage its 
 
 $totalDuration = ($installEndTime - $scriptStartTime).TotalMinutes
 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Installation complete in $([math]::Round($totalDuration, 2)) minutes"
-Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Rebooting to finalize Containers feature..."
+
+# Step 7: Allow job-user to Run As Admin without being prompted for credentials
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Updating registry keys..."
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" -Name "ConsentPromptBehaviorAdmin" -Value 0 -Type DWord
 
 # Clean up installer
 Remove-Item ".\Docker_Desktop_Installer.exe" -ErrorAction SilentlyContinue
@@ -94,4 +97,5 @@ Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Password set!"
 
 
 # Final reboot
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Rebooting to finalize Containers feature..."
 Restart-Computer -Force
