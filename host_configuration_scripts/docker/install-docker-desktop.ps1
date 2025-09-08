@@ -58,7 +58,7 @@ Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Adding users to docker-users gr
 Add-LocalGroupMember -Group "docker-users" -Member "deadline-worker" -ErrorAction SilentlyContinue
 Add-LocalGroupMember -Group "docker-users" -Member "job-user" -ErrorAction SilentlyContinue
 
-Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Adding deadline-worker to Administrators group..."
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Adding users to Administrators group..."
 Add-LocalGroupMember -Group "Administrators" -Member "deadline-worker" -ErrorAction SilentlyContinue
 Add-LocalGroupMember -Group "Administrators" -Member "job-user" -ErrorAction SilentlyContinue
 
