@@ -70,6 +70,8 @@ steps:
       onRun:
         command: powershell
         args:
+          - "-ExecutionPolicy"
+          - "Bypass"
           - "-File"
           - "{{Task.File.Run}}"
     embeddedFiles:
@@ -78,81 +80,57 @@ steps:
         type: TEXT
         runnable: true
         data: |
-          $logFile = "C:\temp\docker_render.log"
+          Write-Host "Starting After Effects Docker render..."
+          Write-Host "Project: {{Param.ProjectFile}}"
+          Write-Host "Frames: {{Param.StartFrame}}-{{Param.EndFrame}}"
+          Write-Host "Output: {{Param.OutputDir}}"
 
-          if (-not (Test-Path "C:\temp")) {
-              New-Item -ItemType Directory -Path "C:\temp" -Force
+          # Start Docker Desktop if not running
+          $dockerDesktop = Get-Process "Docker Desktop" -ErrorAction SilentlyContinue
+          if (-not $dockerDesktop) {
+              Write-Host "Starting Docker Desktop..."
+              Start-Process "C:\Program Files\Docker\Docker\Docker Desktop.exe" -WindowStyle Hidden
           }
 
-          Write-Host "Starting Docker render process..."
+          # Wait for all required Docker processes
+          $requiredProcesses = @("Docker Desktop", "com.docker.build", "Docker Desktop Backend", "Docker Desktop Service", "dockerd")
+          $timeout = 120
+          $elapsed = 0
 
-          Write-Host "Running elevated Docker commands..."
-          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass", "-File", "{{Task.File.DockerRender}}" -Verb RunAs -Wait
-
-          Write-Host "=== Process Output ==="
-          if (Test-Path $logFile) {
-              Get-Content $logFile | ForEach-Object { Write-Host $_ }
-          } else {
-              Write-Host "No log file found"
-          }
-
-          Remove-Item $logFile -ErrorAction SilentlyContinue
-      - name: DockerRender
-        filename: docker_render.ps1
-        type: TEXT
-        runnable: true
-        data: |
-          $logFile = "C:\temp\docker_render.log"
-
-          function Log($message) {
-              $message | Out-File -FilePath $logFile -Append -Encoding UTF8
-          }
-
-          Log "Starting After Effects Docker render..."
-          Log "Project: {{Param.ProjectFile}}"
-          Log "Frames: {{Param.StartFrame}}-{{Param.EndFrame}}"
-          Log "Output: {{Param.OutputDir}}"
-
-          Log "Checking Docker processes..."
-          Get-Process | Where-Object { $_.ProcessName -like "*docker*" } | ForEach-Object {
-              Log "Docker process: $($_.ProcessName) (PID: $($_.Id))"
-          }
-
-          Log "Checking Docker service status..."
-          try {
-              $service = Get-Service -Name "com.docker.service" -ErrorAction SilentlyContinue
-              if ($service) {
-                  Log "com.docker.service status: $($service.Status)"
-              } else {
-                  Log "com.docker.service not found"
+          Write-Host "Waiting for Docker processes to start..."
+          do {
+              Start-Sleep 5
+              $elapsed += 5
+              
+              $runningProcesses = @()
+              foreach ($processName in $requiredProcesses) {
+                  if (Get-Process $processName -ErrorAction SilentlyContinue) {
+                      $runningProcesses += $processName
+                  }
               }
-          } catch {
-              Log "Error checking service: $($_.Exception.Message)"
-          }
+              
+              $allRunning = $runningProcesses.Count -eq $requiredProcesses.Count
+              Write-Host "Running: $($runningProcesses.Count)/$($requiredProcesses.Count) processes"
+              
+          } while (-not $allRunning -and $elapsed -lt $timeout)
 
-          Log "Switching to default Docker context..."
-          docker context use default 2>&1 | ForEach-Object { Log $_ }
-
-          Log "Testing Docker connectivity..."
-          try {
-              docker version 2>&1 | ForEach-Object { Log $_ }
-              Log "Docker daemon is accessible"
-          } catch {
-              Log "ERROR: Docker daemon not accessible: $($_.Exception.Message)"
+          if (-not $allRunning) {
+              Write-Error "Docker processes failed to start within $timeout seconds"
               exit 1
           }
 
-          Log "Logging into ECR..."
-          $loginOutput = aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}} 2>&1
-          $loginOutput | ForEach-Object { Log $_ }
+          Write-Host "All Docker processes are running"
 
-          if ($loginOutput -match "Login Succeeded") {
-              Log "ECR authentication successful"
-          } else {
-              Log "ECR authentication may have failed - will test with docker run"
-          }
+          Write-Host "Docker version:"
+          docker version
 
-          Log "Starting Docker container..."
+          Write-Host "Docker info:"
+          docker info
+
+          Write-Host "Logging into ECR..."
+          aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}}
+
+          Write-Host "Starting Docker container..."
           docker run --rm `
             -v "{{Session.WorkingDirectory}}:C:\workspace" `
             -v "{{Session.WorkingDirectory}}\{{Param.OutputDir}}:C:\output" `
@@ -164,6 +142,6 @@ steps:
             -e {{Param.EndFrame}} `
             -output "C:\output\comp_mainTitle_TORENDER_[#####].png" `
             -v ERRORS_AND_PROGRESS `
-            -close DO_NOT_SAVE_CHANGES 2>&1 | ForEach-Object { Log $_ }
+            -close DO_NOT_SAVE_CHANGES
 
-          Log "Render completed."
+          Write-Host "Render completed."
