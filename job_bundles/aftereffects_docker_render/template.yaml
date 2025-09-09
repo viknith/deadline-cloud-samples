@@ -86,6 +86,7 @@ steps:
           Write-Host "Output: {{Param.OutputDir}}"
 
           # Apply Docker config workaround to avoid credential helper issues
+          Write-Host "Apply credentials workaround"
           $path = "$env:USERPROFILE\.docker\config.json"
           $content = @'
           {
@@ -140,6 +141,10 @@ steps:
 
           Write-Host "Docker info:"
           docker info
+
+          # Switch to default Docker context
+          Write-Host "Switching to default Docker context..."
+          docker context use default
 
           Write-Host "Logging into ECR..."
           aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}}
