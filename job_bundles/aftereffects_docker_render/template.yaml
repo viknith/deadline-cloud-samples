@@ -93,7 +93,7 @@ steps:
           }
 
           # Wait for all required Docker processes
-          $requiredProcesses = @("Docker Desktop", "com.docker.build", "Docker Desktop Backend", "Docker Desktop Service", "dockerd")
+          $requiredProcesses = @("Docker Desktop", "com.docker.build", "com.docker.backend", "com.docker.service", "dockerd")
           $timeout = 120
           $elapsed = 0
 
@@ -101,17 +101,17 @@ steps:
           do {
               Start-Sleep 5
               $elapsed += 5
-              
+
               $runningProcesses = @()
               foreach ($processName in $requiredProcesses) {
                   if (Get-Process $processName -ErrorAction SilentlyContinue) {
                       $runningProcesses += $processName
                   }
               }
-              
+
               $allRunning = $runningProcesses.Count -eq $requiredProcesses.Count
               Write-Host "Running: $($runningProcesses.Count)/$($requiredProcesses.Count) processes"
-              
+
           } while (-not $allRunning -and $elapsed -lt $timeout)
 
           if (-not $allRunning) {
