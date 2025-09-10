@@ -157,12 +157,13 @@ steps:
             -v "C:\Sessions:C:\Sessions" `
             {{Param.ECR_REGISTRY}}/ae-redgiant-full:latest `
             "C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\aerender.exe" `
-            -project "C:\workspace\{{Param.ProjectFile}}" `
+            -project "{{Param.ProjectFile}}" `
             -rqindex {{Param.RenderQueueIndex}} `
             -s {{Param.StartFrame}} `
             -e {{Param.EndFrame}} `
-            -output "C:\output\comp_mainTitle_TORENDER_[#####].png" `
+            -output "{{Param.OutputDir}}\comp_mainTitle_TORENDER_[#####].png" `
             -v ERRORS_AND_PROGRESS `
-            -close DO_NOT_SAVE_CHANGES
+            -close DO_NOT_SAVE_CHANGES `
+            -sound OFF
 
           Write-Host "Render completed."
