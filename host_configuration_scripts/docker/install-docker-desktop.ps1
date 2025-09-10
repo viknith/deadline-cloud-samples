@@ -95,6 +95,9 @@ Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Setting password..."
 net user Administrator Viknith123
 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Password set!"
 
+# Grant Docker access to Sessions folder
+Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Granting all users recursive access to Sessions folder..."
+icacls "C:\Sessions" /grant "Everyone:F" /T
 
 # Final reboot
 Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] Rebooting to finalize Containers feature..."
