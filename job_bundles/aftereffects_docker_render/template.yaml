@@ -86,16 +86,16 @@ steps:
           Write-Host "Output: {{Param.OutputDir}}"
 
           # Apply Docker config workaround to avoid credential helper issues
-          Write-Host "Apply credentials workaround"
           $path = "$env:USERPROFILE\.docker\config.json"
           $content = @'
           {
               "auths": {
-                  "public.ecr.aws": {}
+                  "{{Param.ECR_REGISTRY}}": {}
               },
               "credStore": ""
           }
           '@
+          Write-Host "Apply credentials workaround by writing $content to $path"
 
           $utf8NoBom = New-Object System.Text.UTF8Encoding $false
           [System.IO.File]::WriteAllText($path, $content, $utf8NoBom)
