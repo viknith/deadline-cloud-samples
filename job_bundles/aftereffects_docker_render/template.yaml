@@ -90,7 +90,7 @@ steps:
           $content = @'
           {
               "auths": {
-                  "{{Param.ECR_REGISTRY}}": {}
+                  "{{Param.ECR_REGISTRY}}/ae-redgiant-full": {}
               },
               "credStore": ""
           }
