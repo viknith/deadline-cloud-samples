@@ -1,81 +1,108 @@
-# Docker Desktop Installation for Windows
+# Host Configuration for Docker Desktop
 
-This directory contains scripts for installing Docker Desktop on Windows EC2 instances in headless mode.
+This guide covers setting up Docker Desktop on Windows EC2 instances for containerized workloads in AWS Deadline Cloud. The installation script provides automated, headless Docker Desktop setup with proper user permissions and credential handling for ECR integration.
 
-## Scripts
+> **⚠️ Performance Impact**: This script adds about **5-8 minutes** to worker launch time due to Docker Desktop installation and Windows Containers feature setup. Plan accordingly for your fleet scaling and job scheduling.
 
-### install-docker-desktop.ps1
+## Prerequisites
 
-Single-phase automated Docker Desktop installation script that:
-- Enables Windows Containers feature
-- Downloads Docker Desktop installer from S3
-- Installs Docker Desktop with Windows containers backend
-- Configures user permissions and PATH
-- Initializes Docker Engine with automatic startup
-- Reboots once to finalize setup
+- Windows Server 2019/2022 or Windows 10/11
+- Administrator privileges  
+- AWS CLI configured with appropriate permissions
+- S3 bucket for storing Docker Desktop installer
+- AWS Deadline Cloud farm with Windows fleet configured
 
-### docker-health-check.ps1
+## Required Installer
 
-Health check script that verifies:
-- Docker Desktop installation
-- Docker CLI availability
-- Docker service status
-- Docker engine connectivity
-- User permissions (docker-users group)
-- Windows Containers feature
-- Container functionality
+### Docker Desktop for Windows
+
+Download from the [Docker Desktop for Windows installation page](https://docs.docker.com/desktop/setup/install/windows-install/):
+1. Click **"Docker Desktop for Windows"** to download `Docker Desktop Installer.exe`
+
+The installation script uses `--backend=windows` to configure Docker Desktop with Windows containers backend instead of WSL 2 or Hyper-V, providing native Windows container support for AWS EC2 instances.
+
+## S3 Bucket Setup
+
+### 1. Create S3 Bucket Structure
+
+```bash
+export INSTALLER_S3_BUCKET=your-installer-bucket
+aws s3api put-object --bucket $INSTALLER_S3_BUCKET --key Installers/
+```
+
+### 2. Upload Docker Desktop Installer
+
+```bash
+export INSTALLER_S3_BUCKET=your-installer-bucket
+aws s3 cp "Docker Desktop Installer.exe" s3://$INSTALLER_S3_BUCKET/Installers/
+```
+
+### 3. Update IAM Role Permissions
+
+Add the following inline policy to your Fleet role:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Sid": "ReadBucket",
+            "Action": [
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::<your-bucket>/Installers/*"
+            ],
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceAccount": "<your-aws-account-id>"
+                }
+            }
+        }
+    ]
+}
+```
 
 ## Usage
 
-### Prerequisites
+### 1. Configure Installation Script
 
-- Windows Server 2019/2022 or Windows 10/11
-- Administrator privileges
-- AWS CLI configured with S3 access permissions
-- Docker Desktop installer available at: `s3://viknith-job-attachments/Installers/Docker Desktop Installer.exe`
-
-### Installation
+Update the S3 bucket name in the script:
 
 ```powershell
+# Update this line in install-docker-desktop.ps1
+aws s3 cp --no-progress "s3://your-installer-bucket/Installers/Docker Desktop Installer.exe" ".\Docker_Desktop_Installer.exe"
+```
+
+### 2. Deploy to Fleet
+
+Add the contents of `install-docker-desktop.ps1` to your fleet's Configuration Scripts:
+
+1. Navigate to **Fleets** in AWS Deadline Cloud console
+2. Select your fleet
+3. Go to **Configurations** tab
+4. Add script under **Worker configuration script**
+
+### 3. Test Installation Locally
+
+```powershell
+# Configure AWS credentials
+aws configure
+
 # Run the installation script
 .\install-docker-desktop.ps1
 ```
 
 The script will:
-1. Enable Windows Containers feature (no restart)
+1. Enable Windows Containers feature
 2. Download Docker Desktop installer from S3
-3. Install Docker Desktop silently
-4. Add users to docker-users group (deadline-worker, ssm-user)
+3. Install Docker Desktop with Windows containers backend
+4. Add users to docker-users and Administrators groups
 5. Configure Docker CLI in system PATH
-6. Register and start Docker service with automatic startup
-7. Reboot to finalize Windows Containers feature
-
-### Health Check
-
-After installation and reboot, verify Docker is working:
-
-```powershell
-# Run health check
-.\docker-health-check.ps1
-```
-
-The health check performs 7 tests and provides a summary of passed/failed checks.
-
-### Manual Verification
-
-```powershell
-docker version
-docker run --rm mcr.microsoft.com/windows/nanoserver:ltsc2022 cmd /c "echo Docker test successful"
-```
-
-## Configuration
-
-The script installs Docker Desktop with:
-- **Backend**: Windows containers (native Windows container support)
-- **Service mode**: Always running (`--always-run-service`)
-- **User permissions**: Adds deadline-worker and ssm-user to docker-users group
-- **License**: Automatically accepts Docker Desktop license
-- **Startup**: Docker service configured for automatic startup after reboot
+6. Disable UAC prompts for Administrator account
+7. Set Administrator password for elevated operations
+8. Reboot to finalize Windows Containers feature
 
 ## Troubleshooting
 
@@ -85,41 +112,31 @@ The script installs Docker Desktop with:
    - Ensure EC2 instance has IAM role with S3 read permissions
    - Verify AWS CLI is configured: `aws sts get-caller-identity`
 
-2. **Docker Service Not Running After Reboot**
-   - The script now configures automatic startup, but if issues persist:
-   - Manually start: `Start-Service docker`
-   - Check service: `Get-Service docker`
+2. **Docker Processes Not Starting**
+   - Check if all 5 required processes are running: `Docker Desktop`, `com.docker.build`, `com.docker.backend`, `com.docker.service`, `dockerd`
 
-3. **Docker Commands Not Found**
-   - Log out and back in to refresh PATH and group membership
-   - Verify PATH includes: `C:\Program Files\Docker\Docker\resources\bin`
+3. **ECR Login "Stub Received Bad Data" Error**
+   - Job templates should delete `C:\Users\job-user\.docker` before Docker operations
 
-4. **Container Tests Fail**
+4. **500 Internal Server Error on Docker Commands**
+   - Switch Docker context: `docker context use default`
+
+5. **Container Tests Fail**
    - Ensure Windows Containers feature is enabled: `Get-WindowsOptionalFeature -Online -FeatureName Containers`
-   - Verify Docker is using Windows containers (not Linux containers)
 
-### Cleanup
+## Integration with Job Templates
 
-To remove Docker Desktop and reset for testing:
+Job templates using Docker should include these steps:
 
-```powershell
-# Uninstall Docker Desktop
-$uninstaller = "C:\Program Files\Docker\Docker\Docker Desktop Installer.exe"
-if (Test-Path $uninstaller) {
-    Start-Process -FilePath $uninstaller -ArgumentList "uninstall --quiet" -Wait
-}
-
-# Disable Containers feature
-Disable-WindowsOptionalFeature -Online -FeatureName Containers -NoRestart
-
-# Reboot to complete cleanup
-Restart-Computer -Force
-```
+1. **Remove Docker config directory** to avoid credential helper issues
+2. **Wait for all 5 Docker processes** to ensure full startup
+3. **Switch to default context** to avoid API connection problems
+4. **Handle ECR authentication** with proper error handling
 
 ## Notes
 
 - Uses Windows containers backend (not WSL-2 or Hyper-V)
 - Installation requires one reboot to finalize Windows Containers feature
-- Total installation time is typically 8-15 minutes depending on instance size
-- Docker service is configured for automatic startup after system reboots
-- Script provides detailed timing measurements for performance monitoring
+- Total installation time is typically 5-8 minutes depending on instance size
+- Administrator password is set to enable job-level Docker operations
+- UAC is disabled to prevent interactive prompts during job execution

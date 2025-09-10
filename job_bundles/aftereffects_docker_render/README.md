@@ -1,73 +1,62 @@
 # After Effects Docker Render Job Bundle
 
-This job bundle renders After Effects projects using Docker containers with pre-installed software.
+This job bundle renders After Effects projects using Docker containers on Windows workers. The job handles Docker startup, ECR authentication, and runs After Effects rendering inside a container.
 
 ## Prerequisites
 
-1. Docker image built and pushed to ECR (see `../../docker/aftereffects/README.md`)
-2. Windows workers with Docker Desktop installed
-3. Deadline Cloud CLI configured
+- Windows workers with Docker Desktop installed (use host configuration script)
+- ECR registry with `ae-redgiant-full:latest` container image
+- After Effects project file (.aep or .aepx)
 
 ## Usage
 
-### Basic Submission
+### Using the Submit Script
+
+Edit `submit.sh` with your project details:
 
 ```bash
-deadline bundle submit job_bundles/aftereffects_docker_render \
-  -p ProjectFile=my_project.aep \
-  -p RenderQueueIndex=1 \
-  -p OutputDir=./output \
-  -p Frames="1-100" \
-  -p ChunkSize=10
+deadline bundle submit . \
+  -p ProjectFile="/path/to/your/project.aep" \
+  -p StartFrame=1 \
+  -p EndFrame=100 \
+  -p ECR_REGISTRY="your-account.dkr.ecr.region.amazonaws.com"
 ```
 
-### Advanced Parameters
+Then run: `./submit.sh`
+
+### Manual Submission
 
 ```bash
 deadline bundle submit job_bundles/aftereffects_docker_render \
-  -p ProjectFile=complex_project.aep \
-  -p RenderQueueIndex=2 \
-  -p OutputDir=./renders \
-  -p OutputFileName="final_render_####.exr" \
-  -p Frames="50-200" \
-  -p ChunkSize=25 \
-  -p ECR_REGISTRY=484745417699.dkr.ecr.us-west-2.amazonaws.com
+  -p ProjectFile="my_project.aep" \
+  -p StartFrame=1 \
+  -p EndFrame=100
 ```
 
 ## Parameters
 
-- **ProjectFile**: After Effects project file (.aep or .aepx)
-- **RenderQueueIndex**: Which render queue item to render (default: 1)
-- **OutputDir**: Directory for rendered frames (default: ./output)
-- **OutputFileName**: Output filename pattern (default: output_####.png)
-- **Frames**: Frame range to render (default: 1-100)
-- **ChunkSize**: Frames per task for parallel processing (default: 10)
-- **ECR_REGISTRY**: ECR registry URI (default: 484745417699.dkr.ecr.us-west-2.amazonaws.com)
+- **ProjectFile**: After Effects project file path
+- **RenderQueueIndex**: Render queue item to use (default: 1)
+- **StartFrame**: First frame to render (default: 96)
+- **EndFrame**: Last frame to render (default: 215)
+- **OutputDir**: Output directory (default: "./output")
+- **ECR_REGISTRY**: ECR registry URI
+
+## What to Change
+
+Update these values in `submit.sh` for your project:
+
+- **ProjectFile**: Path to your After Effects project
+- **StartFrame/EndFrame**: Frame range for your composition
+- **ECR_REGISTRY**: Your ECR registry if different from default
 
 ## How It Works
 
-1. **Job Submission**: Project files uploaded to S3 via Job Attachments
-2. **Worker Assignment**: Windows workers with Docker pull the ECR image
-3. **Container Execution**: Docker runs with bind mounts for project and output files
-4. **Frame Rendering**: After Effects renders frame chunks in parallel
-5. **Output Upload**: Rendered frames uploaded to S3 via Job Attachments
-
-## File Structure
-
-```
-aftereffects_docker_render/
-├── template.yaml              # Job template definition
-├── scripts/
-│   ├── call_aerender.py      # Main rendering script
-│   ├── create_output_directory.py
-│   ├── font_manager.py       # Font installation utilities
-│   └── get_user_fonts.py     # Project font detection
-└── README.md
-```
+The job automatically starts Docker Desktop, waits for required processes, authenticates with ECR, and runs After Effects rendering in a Windows container with your project files mounted.
 
 ## Troubleshooting
 
-- **Container not found**: Verify ECR registry URI and `ae-redgiant-full` image exists
-- **Permission denied**: Ensure Docker Desktop is running with Windows containers
-- **Render fails**: Check After Effects project compatibility and render queue settings
-- **Missing fonts**: Ensure fonts are in a `fonts/` directory relative to the project file
+- **Docker not starting**: Ensure Docker Desktop installed via host configuration
+- **ECR auth fails**: Check AWS credentials and registry URI
+- **Container not found**: Verify `ae-redgiant-full:latest` exists in ECR
+- **Render fails**: Check project file and render queue settings
