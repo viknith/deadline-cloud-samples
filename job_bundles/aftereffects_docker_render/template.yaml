@@ -155,6 +155,7 @@ steps:
           Write-Host "Starting Docker container..."
           docker run --rm `
             -v "C:\Sessions:C:\Sessions" `
+            -w "C:\" `
             {{Param.ECR_REGISTRY}}/ae-redgiant-full:latest `
             "C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\aerender.exe" `
             -project "{{Param.ProjectFile}}" `
