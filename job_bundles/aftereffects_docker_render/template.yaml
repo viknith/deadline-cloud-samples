@@ -58,6 +58,14 @@ parameterDefinitions:
     default: "484745417699.dkr.ecr.us-west-2.amazonaws.com"
     description: ECR registry URI
 
+  - name: OutputFilename
+    type: STRING
+    userInterface:
+      control: LINE_EDIT
+      label: Output Filename Pattern
+    default: "render_[#####].png"
+    description: Output filename pattern with frame number placeholder
+
 steps:
 - name: Render
   hostRequirements:
@@ -145,9 +153,10 @@ steps:
           Write-Host "Docker info:"
           docker info
 
-          # Switch to default Docker context
+          # Switch to default Docker context and lock it
           Write-Host "Switching to default Docker context..."
           docker context use default
+          $env:DOCKER_CONTEXT = "default"
 
           Write-Host "Logging into ECR..."
           aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin {{Param.ECR_REGISTRY}}
@@ -155,32 +164,46 @@ steps:
           Write-Host "Creating output directory..."
           New-Item -ItemType Directory -Force -Path "{{Param.OutputDir}}"
 
-          Write-Host "Checking file access in container..."
-          docker run --rm `
-            -v "C:\Sessions:C:\Sessions" `
-            -w "C:\" `
-            {{Param.ECR_REGISTRY}}/ae-redgiant-full:latest `
-            powershell -Command "
-              Write-Host 'Container user:'; whoami;
-              Write-Host 'File exists:'; Test-Path '{{Param.ProjectFile}}';
-              Write-Host 'File details:'; Get-Item '{{Param.ProjectFile}}' | Select-Object Name, Length, LastWriteTime;
-              Write-Host 'File permissions:'; Get-Acl '{{Param.ProjectFile}}' | Select-Object -ExpandProperty Access;
-              Write-Host 'Can read file:'; try { Get-Content '{{Param.ProjectFile}}' -TotalCount 1; 'YES' } catch { 'NO: ' + `$_.Exception.Message }
-            "
+          Write-Host "Creating and starting container..."
+          $containerName = "ae-render-$(Get-Random)"
+          docker run -d --name $containerName {{Param.ECR_REGISTRY}}/ae-redgiant-full:latest ping -t localhost
 
-          Write-Host "Starting Docker container..."
-          docker run --rm `
-            -v "C:\Sessions:C:\Sessions" `
-            -w "C:\" `
-            {{Param.ECR_REGISTRY}}/ae-redgiant-full:latest `
+          Write-Host "Copying project file to container..."
+          docker cp "{{Param.ProjectFile}}" "${containerName}:C:\project.aep"
+
+          # Create output directory inside container
+          Write-Host "Creating output directory inside container..."
+          docker exec $containerName powershell -Command "New-Item -ItemType Directory -Path 'C:\output' -Force"
+
+          # Run render and capture exit code
+          Write-Host "Running After Effects render..."
+          $renderResult = docker exec $containerName `
             "C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\aerender.exe" `
-            -project "{{Param.ProjectFile}}" `
+            -project "C:\project.aep" `
             -rqindex {{Param.RenderQueueIndex}} `
             -s {{Param.StartFrame}} `
             -e {{Param.EndFrame}} `
-            -output "{{Param.OutputDir}}\comp_mainTitle_TORENDER_[#####].png" `
+            -output "C:\output\{{Param.OutputFilename}}" `
             -v ERRORS_AND_PROGRESS `
             -close DO_NOT_SAVE_CHANGES `
+            -continueOnMissingFootage `
             -sound OFF
+
+          Write-Host "Container logs:"
+          docker logs $containerName
+
+          if ($LASTEXITCODE -ne 0) {
+              Write-Error "After Effects render failed with exit code: $LASTEXITCODE"
+              exit 1
+          }
+
+          Write-Host "Container logs:"
+          docker logs $containerName
+
+          Write-Host "Copying rendered files to output directory..."
+          docker cp "${containerName}:C:/output/" "{{Param.OutputDir}}"
+
+          Write-Host "Cleaning up container..."
+          docker rm -f $containerName
 
           Write-Host "Render completed."
