@@ -1,5 +1,5 @@
 specificationVersion: jobtemplate-2023-09
-name: After Effects Docker Render
+name: After Effects Docker Render With Red Giant
 description: Render After Effects projects using Docker containers
 parameterDefinitions:
   - name: ProjectFile
@@ -166,7 +166,13 @@ steps:
 
           Write-Host "Creating and starting container..."
           $containerName = "ae-render-$(Get-Random)"
-          docker run -d --name $containerName {{Param.ECR_REGISTRY}}/ae-redgiant-full:latest ping -t localhost
+          docker run -d --name $containerName `
+            --dns 169.254.169.253 `
+            --gpus all `
+            -e "AERENDER_EXECUTABLE=$env:AERENDER_EXECUTABLE" `
+            -e "MAXON_RENDERONLY=$env:MAXON_RENDERONLY" `
+            -e "redshift_LICENSE=$env:redshift_LICENSE" `
+            {{Param.ECR_REGISTRY}}/ae-redgiant-full:latest ping -t localhost
 
           Write-Host "Copying project file to container..."
           docker cp "{{Param.ProjectFile}}" "${containerName}:C:\project.aep"
@@ -175,25 +181,54 @@ steps:
           Write-Host "Creating output directory inside container..."
           docker exec $containerName powershell -Command "New-Item -ItemType Directory -Path 'C:\output' -Force"
 
-          # Run render and capture exit code
-          Write-Host "Running After Effects render..."
-          $renderResult = docker exec $containerName `
-            "C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\aerender.exe" `
-            -project "C:\project.aep" `
-            -rqindex {{Param.RenderQueueIndex}} `
-            -s {{Param.StartFrame}} `
-            -e {{Param.EndFrame}} `
-            -output "C:\output\{{Param.OutputFilename}}" `
-            -v ERRORS_AND_PROGRESS `
-            -close DO_NOT_SAVE_CHANGES `
-            -continueOnMissingFootage `
-            -sound OFF
+          # Debug license configuration and processes
+          Write-Host "=== DEBUGGING INFORMATION ==="
+          Write-Host "Host redshift_LICENSE: $env:redshift_LICENSE"
+
+          Write-Host "Container environment variables:"
+          docker exec $containerName cmd /c set | findstr -i redshift
+          docker exec $containerName cmd /c set | findstr -i maxon
+          docker exec $containerName cmd /c set | findstr -i license
+
+          Write-Host "All container processes:"
+          docker exec $containerName tasklist
+
+          # Test license server connectivity for multiple servers
+          if ($env:redshift_LICENSE) {
+              $servers = $env:redshift_LICENSE -split ';'
+              foreach ($serverEntry in $servers) {
+                  $parts = $serverEntry -split '@'
+                  if ($parts.Length -eq 2) {
+                      $port = $parts[0]
+                      $server = $parts[1]
+                      Write-Host "Testing connectivity to license server ${server}:${port}..."
+                      docker exec $containerName powershell -Command "Test-NetConnection -ComputerName '$server' -Port $port"
+                  }
+              }
+          }
+          Write-Host "=== END DEBUGGING ==="
+
+          # Run render with real-time output streaming
+          Write-Host "Running After Effects render with real-time output..."
+          $psi = New-Object System.Diagnostics.ProcessStartInfo
+          $psi.FileName = "docker"
+          $psi.Arguments = "exec $containerName `"C:\Program Files\Adobe\Adobe After Effects 2025\Support Files\aerender.exe`" -project `"C:\project.aep`" -rqindex {{Param.RenderQueueIndex}} -s {{Param.StartFrame}} -e {{Param.EndFrame}} -output `"C:\output\{{Param.OutputFilename}}`" -v ERRORS_AND_PROGRESS -close DO_NOT_SAVE_CHANGES -continueOnMissingFootage -sound OFF"
+          $psi.RedirectStandardOutput = $true
+          $psi.RedirectStandardError = $true
+          $psi.UseShellExecute = $false
+
+          $process = [System.Diagnostics.Process]::Start($psi)
+          while (!$process.StandardOutput.EndOfStream) {
+              $line = $process.StandardOutput.ReadLine()
+              Write-Host "[AERENDER] $line"
+          }
+          $process.WaitForExit()
 
           Write-Host "Container logs:"
           docker logs $containerName
 
-          if ($LASTEXITCODE -ne 0) {
-              Write-Error "After Effects render failed with exit code: $LASTEXITCODE"
+          if ($process.ExitCode -ne 0) {
+              Write-Error "After Effects render failed with exit code: $($process.ExitCode)"
               exit 1
           }
 
